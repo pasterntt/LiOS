@@ -1,0 +1,15 @@
+/* Write your custom CSS here */
+
+.available {
+    width:20px;
+    height:20px;
+
+    background-color: #27ae60;
+    border-radius: 50%;
+}
+.available.not {
+    background-color: #c0392b;
+}
+.available.low {
+    background-color: #f1c40f;
+}
