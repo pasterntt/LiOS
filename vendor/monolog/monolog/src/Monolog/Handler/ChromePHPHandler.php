@@ -17,6 +17,8 @@ use Monolog\Logger;
 /**
  * Handler sending logs to the ChromePHP extension (http://www.chromephp.com/)
  *
+ * This also works out of the box with Firefox 43+
+ *
  * @author Christophe Coevoet <stof@notk.org>
  */
 class ChromePHPHandler extends AbstractProcessingHandler
@@ -30,6 +32,11 @@ class ChromePHPHandler extends AbstractProcessingHandler
      * Header name
      */
     const HEADER_NAME = 'X-ChromeLogger-Data';
+
+    /**
+     * Regular expression to detect supported browsers (matches any Chrome, or Firefox 43+)
+     */
+    const USER_AGENT_REGEX = '{\b(?:Chrome/\d+(?:\.\d+)*|Firefox/(?:4[3-9]|[5-9]\d|\d{3,})(?:\.\d)*)\b}';
 
     protected static $initialized = false;
 
@@ -51,7 +58,7 @@ class ChromePHPHandler extends AbstractProcessingHandler
     protected static $sendHeaders = true;
 
     /**
-     * @param integer $level  The minimum logging level at which this handler will be triggered
+     * @param int $level The minimum logging level at which this handler will be triggered
      * @param Boolean $bubble Whether the messages that are handled can bubble up the stack or not
      */
     public function __construct($level = Logger::DEBUG, $bubble = true)
@@ -81,28 +88,6 @@ class ChromePHPHandler extends AbstractProcessingHandler
             self::$json['rows'] = array_merge(self::$json['rows'], $messages);
             $this->send();
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    protected function getDefaultFormatter()
-    {
-        return new ChromePHPFormatter();
-    }
-
-    /**
-     * Creates & sends header for a record
-     *
-     * @see sendHeader()
-     * @see send()
-     * @param array $record
-     */
-    protected function write(array $record)
-    {
-        self::$json['rows'][] = $record['formatted'];
-
-        $this->send();
     }
 
     /**
@@ -152,19 +137,6 @@ class ChromePHPHandler extends AbstractProcessingHandler
     }
 
     /**
-     * Send header string to the client
-     *
-     * @param string $header
-     * @param string $content
-     */
-    protected function sendHeader($header, $content)
-    {
-        if (!headers_sent() && self::$sendHeaders) {
-            header(sprintf('%s: %s', $header, $content));
-        }
-    }
-
-    /**
      * Verifies if the headers are accepted by the current user agent
      *
      * @return Boolean
@@ -175,7 +147,20 @@ class ChromePHPHandler extends AbstractProcessingHandler
             return false;
         }
 
-        return preg_match('{\bChrome/\d+[\.\d+]*\b}', $_SERVER['HTTP_USER_AGENT']);
+        return preg_match(self::USER_AGENT_REGEX, $_SERVER['HTTP_USER_AGENT']);
+    }
+
+    /**
+     * Send header string to the client
+     *
+     * @param string $header
+     * @param string $content
+     */
+    protected function sendHeader($header, $content)
+    {
+        if (!headers_sent() && self::$sendHeaders) {
+            header(sprintf('%s: %s', $header, $content));
+        }
     }
 
     /**
@@ -200,5 +185,27 @@ class ChromePHPHandler extends AbstractProcessingHandler
         }
 
         static::$sendHeaders = $value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getDefaultFormatter()
+    {
+        return new ChromePHPFormatter();
+    }
+
+    /**
+     * Creates & sends header for a record
+     *
+     * @see sendHeader()
+     * @see send()
+     * @param array $record
+     */
+    protected function write(array $record)
+    {
+        self::$json['rows'][] = $record['formatted'];
+
+        $this->send();
     }
 }

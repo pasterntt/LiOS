@@ -27,6 +27,16 @@ class HelpCommand extends Command
     private $command;
 
     /**
+     * Sets the command.
+     *
+     * @param Command $command The command to set
+     */
+    public function setCommand(Command $command)
+    {
+        $this->command = $command;
+    }
+
+    /**
      * {@inheritdoc}
      */
     protected function configure()
@@ -41,7 +51,7 @@ class HelpCommand extends Command
                 new InputOption('raw', null, InputOption::VALUE_NONE, 'To output raw command help'),
             ))
             ->setDescription('Displays help for a command')
-            ->setHelp(<<<EOF
+            ->setHelp(<<<'EOF'
 The <info>%command.name%</info> command displays help for a given command:
 
   <info>php %command.full_name% list</info>
@@ -54,16 +64,6 @@ To display the list of available commands, please use the <info>list</info> comm
 EOF
             )
         ;
-    }
-
-    /**
-     * Sets the command.
-     *
-     * @param Command $command The command to set
-     */
-    public function setCommand(Command $command)
-    {
-        $this->command = $command;
     }
 
     /**

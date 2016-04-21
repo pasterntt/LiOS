@@ -50,16 +50,6 @@ class BelongsTo extends Relation
     }
 
     /**
-     * Get the results of the relationship.
-     *
-     * @return mixed
-     */
-    public function getResults()
-    {
-        return $this->query->first();
-    }
-
-    /**
      * Set the base constraints on the relation query.
      *
      * @return void
@@ -111,6 +101,8 @@ class BelongsTo extends Relation
 
         $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
 
+        $query->getModel()->setTable($hash);
+
         $key = $this->wrap($this->getQualifiedForeignKey());
 
         return $query->where($hash.'.'.$query->getModel()->getKeyName(), '=', new Expression($key));
@@ -124,6 +116,16 @@ class BelongsTo extends Relation
     public function getRelationCountHash()
     {
         return 'self_'.md5(microtime(true));
+    }
+
+    /**
+     * Get the fully qualified foreign key of the relationship.
+     *
+     * @return string
+     */
+    public function getQualifiedForeignKey()
+    {
+        return $this->parent->getTable() . '.' . $this->foreignKey;
     }
 
     /**
@@ -267,6 +269,16 @@ class BelongsTo extends Relation
     }
 
     /**
+     * Get the results of the relationship.
+     *
+     * @return mixed
+     */
+    public function getResults()
+    {
+        return $this->query->first();
+    }
+
+    /**
      * Get the foreign key of the relationship.
      *
      * @return string
@@ -274,16 +286,6 @@ class BelongsTo extends Relation
     public function getForeignKey()
     {
         return $this->foreignKey;
-    }
-
-    /**
-     * Get the fully qualified foreign key of the relationship.
-     *
-     * @return string
-     */
-    public function getQualifiedForeignKey()
-    {
-        return $this->parent->getTable().'.'.$this->foreignKey;
     }
 
     /**

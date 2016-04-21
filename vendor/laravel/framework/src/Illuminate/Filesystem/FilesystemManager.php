@@ -75,6 +75,16 @@ class FilesystemManager implements FactoryContract
     }
 
     /**
+     * Get the default driver name.
+     *
+     * @return string
+     */
+    public function getDefaultDriver()
+    {
+        return $this->app['config']['filesystems.default'];
+    }
+
+    /**
      * Attempt to get the disk from the local cache.
      *
      * @param  string  $name
@@ -111,6 +121,17 @@ class FilesystemManager implements FactoryContract
     }
 
     /**
+     * Get the filesystem connection configuration.
+     *
+     * @param  string $name
+     * @return array
+     */
+    protected function getConfig($name)
+    {
+        return $this->app['config']["filesystems.disks.{$name}"];
+    }
+
+    /**
      * Call a custom driver creator.
      *
      * @param  array  $config
@@ -125,6 +146,39 @@ class FilesystemManager implements FactoryContract
         }
 
         return $driver;
+    }
+
+    /**
+     * Adapt the filesystem implementation.
+     *
+     * @param  \League\Flysystem\FilesystemInterface $filesystem
+     * @return \Illuminate\Contracts\Filesystem\Filesystem
+     */
+    protected function adapt(FilesystemInterface $filesystem)
+    {
+        return new FilesystemAdapter($filesystem);
+    }
+
+    /**
+     * Get a default cloud filesystem instance.
+     *
+     * @return \Illuminate\Contracts\Filesystem\Filesystem
+     */
+    public function cloud()
+    {
+        $name = $this->getDefaultCloudDriver();
+
+        return $this->disks[$name] = $this->get($name);
+    }
+
+    /**
+     * Get the default cloud driver name.
+     *
+     * @return string
+     */
+    public function getDefaultCloudDriver()
+    {
+        return $this->app['config']['filesystems.cloud'];
     }
 
     /**
@@ -144,6 +198,20 @@ class FilesystemManager implements FactoryContract
         return $this->adapt($this->createFlysystem(new LocalAdapter(
             $config['root'], LOCK_EX, $links, $permissions
         ), $config));
+    }
+
+    /**
+     * Create a Flysystem instance with the given adapter.
+     *
+     * @param  \League\Flysystem\AdapterInterface $adapter
+     * @param  array $config
+     * @return \League\Flysystem\FlysystemInterface
+     */
+    protected function createFlysystem(AdapterInterface $adapter, array $config)
+    {
+        $config = Arr::only($config, ['visibility']);
+
+        return new Flysystem($adapter, count($config) > 0 ? $config : null);
     }
 
     /**
@@ -209,8 +277,10 @@ class FilesystemManager implements FactoryContract
             'username' => $config['username'], 'apiKey' => $config['key'],
         ]);
 
+        $root = isset($config['root']) ? $config['root'] : null;
+
         return $this->adapt($this->createFlysystem(
-            new RackspaceAdapter($this->getRackspaceContainer($client, $config)), $config
+            new RackspaceAdapter($this->getRackspaceContainer($client, $config), $root), $config
         ));
     }
 
@@ -228,52 +298,6 @@ class FilesystemManager implements FactoryContract
         $store = $client->objectStoreService('cloudFiles', $config['region'], $urlType);
 
         return $store->getContainer($config['container']);
-    }
-
-    /**
-     * Create a Flysystem instance with the given adapter.
-     *
-     * @param  \League\Flysystem\AdapterInterface  $adapter
-     * @param  array  $config
-     * @return \Leage\Flysystem\FlysystemInterface
-     */
-    protected function createFlysystem(AdapterInterface $adapter, array $config)
-    {
-        $config = Arr::only($config, ['visibility']);
-
-        return new Flysystem($adapter, count($config) > 0 ? $config : null);
-    }
-
-    /**
-     * Adapt the filesystem implementation.
-     *
-     * @param  \League\Flysystem\FilesystemInterface  $filesystem
-     * @return \Illuminate\Contracts\Filesystem\Filesystem
-     */
-    protected function adapt(FilesystemInterface $filesystem)
-    {
-        return new FilesystemAdapter($filesystem);
-    }
-
-    /**
-     * Get the filesystem connection configuration.
-     *
-     * @param  string  $name
-     * @return array
-     */
-    protected function getConfig($name)
-    {
-        return $this->app['config']["filesystems.disks.{$name}"];
-    }
-
-    /**
-     * Get the default driver name.
-     *
-     * @return string
-     */
-    public function getDefaultDriver()
-    {
-        return $this->app['config']['filesystems.default'];
     }
 
     /**

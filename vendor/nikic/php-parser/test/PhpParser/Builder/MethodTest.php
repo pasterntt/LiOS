@@ -10,10 +10,6 @@ use PhpParser\Comment;
 
 class MethodTest extends \PHPUnit_Framework_TestCase
 {
-    public function createMethodBuilder($name) {
-        return new Method($name);
-    }
-
     public function testModifiers() {
         $node = $this->createMethodBuilder('test')
             ->makePublic()
@@ -57,6 +53,11 @@ class MethodTest extends \PHPUnit_Framework_TestCase
             )),
             $node
         );
+    }
+
+    public function createMethodBuilder($name)
+    {
+        return new Method($name);
     }
 
     public function testReturnByRef() {
@@ -118,6 +119,16 @@ class MethodTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(new Stmt\ClassMethod('test', array(), array(
             'comments' => array(new Comment\Doc('/** Test */'))
         )), $node);
+    }
+
+    public function testReturnType()
+    {
+        $node = $this->createMethodBuilder('test')
+            ->setReturnType('bool')
+            ->getNode();
+        $this->assertEquals(new Stmt\ClassMethod('test', array(
+            'returnType' => 'bool'
+        ), array()), $node);
     }
 
     /**

@@ -46,6 +46,13 @@ class FragmentListener implements EventSubscriberInterface
         $this->fragmentPath = $fragmentPath;
     }
 
+    public static function getSubscribedEvents()
+    {
+        return array(
+            KernelEvents::REQUEST => array(array('onKernelRequest', 48)),
+        );
+    }
+
     /**
      * Fixes request attributes when the path is '/_fragment'.
      *
@@ -57,7 +64,14 @@ class FragmentListener implements EventSubscriberInterface
     {
         $request = $event->getRequest();
 
-        if ($request->attributes->has('_controller') || $this->fragmentPath !== rawurldecode($request->getPathInfo())) {
+        if ($this->fragmentPath !== rawurldecode($request->getPathInfo())) {
+            return;
+        }
+
+        if ($request->attributes->has('_controller')) {
+            // Is a sub-request: no need to parse _path but it should still be removed from query parameters as below.
+            $request->query->remove('_path');
+
             return;
         }
 
@@ -85,12 +99,5 @@ class FragmentListener implements EventSubscriberInterface
         }
 
         throw new AccessDeniedHttpException();
-    }
-
-    public static function getSubscribedEvents()
-    {
-        return array(
-            KernelEvents::REQUEST => array(array('onKernelRequest', 48)),
-        );
     }
 }

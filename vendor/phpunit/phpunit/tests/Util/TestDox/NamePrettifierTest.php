@@ -15,11 +15,6 @@ class Util_TestDox_NamePrettifierTest extends PHPUnit_Framework_TestCase
 {
     protected $namePrettifier;
 
-    protected function setUp()
-    {
-        $this->namePrettifier = new PHPUnit_Util_TestDox_NamePrettifier;
-    }
-
     /**
      * @covers PHPUnit_Util_TestDox_NamePrettifier::prettifyTestClass
      */
@@ -64,7 +59,7 @@ class Util_TestDox_NamePrettifierTest extends PHPUnit_Framework_TestCase
     {
         $this->assertEquals('This is a test', $this->namePrettifier->prettifyTestMethod('testThisIsATest'));
         $this->assertEquals('This is a test', $this->namePrettifier->prettifyTestMethod('testThisIsATest2'));
-        $this->assertEquals('this is a test', $this->namePrettifier->prettifyTestMethod('this_is_a_test'));
+        $this->assertEquals('This is a test', $this->namePrettifier->prettifyTestMethod('this_is_a_test'));
         $this->assertEquals('Foo for bar is 0', $this->namePrettifier->prettifyTestMethod('testFooForBarIs0'));
         $this->assertEquals('Foo for baz is 1', $this->namePrettifier->prettifyTestMethod('testFooForBazIs1'));
     }
@@ -77,5 +72,10 @@ class Util_TestDox_NamePrettifierTest extends PHPUnit_Framework_TestCase
     {
         $this->assertEquals('Sets redirect header on 301', $this->namePrettifier->prettifyTestMethod('testSetsRedirectHeaderOn301'));
         $this->assertEquals('Sets redirect header on 302', $this->namePrettifier->prettifyTestMethod('testSetsRedirectHeaderOn302'));
+    }
+
+    protected function setUp()
+    {
+        $this->namePrettifier = new PHPUnit_Util_TestDox_NamePrettifier;
     }
 }

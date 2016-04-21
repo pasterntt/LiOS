@@ -55,6 +55,17 @@ class DebugHandlersListener implements EventSubscriberInterface
         $this->fileLinkFormat = $fileLinkFormat ?: ini_get('xdebug.file_link_format') ?: get_cfg_var('xdebug.file_link_format');
     }
 
+    public static function getSubscribedEvents()
+    {
+        $events = array(KernelEvents::REQUEST => array('configure', 2048));
+
+        if (defined('Symfony\Component\Console\ConsoleEvents::COMMAND')) {
+            $events[ConsoleEvents::COMMAND] = array('configure', 2048);
+        }
+
+        return $events;
+    }
+
     /**
      * Configures the error handler.
      *
@@ -67,7 +78,7 @@ class DebugHandlersListener implements EventSubscriberInterface
         }
         $this->firstCall = false;
         if ($this->logger || null !== $this->throwAt) {
-            $handler = set_error_handler('var_dump', 0);
+            $handler = set_error_handler('var_dump');
             $handler = is_array($handler) ? $handler[0] : null;
             restore_error_handler();
             if ($handler instanceof ErrorHandler) {
@@ -93,7 +104,9 @@ class DebugHandlersListener implements EventSubscriberInterface
         }
         if (!$this->exceptionHandler) {
             if ($event instanceof KernelEvent) {
-                $this->exceptionHandler = array($event->getKernel(), 'terminateWithException');
+                if (method_exists($event->getKernel(), 'terminateWithException')) {
+                    $this->exceptionHandler = array($event->getKernel(), 'terminateWithException');
+                }
             } elseif ($event instanceof ConsoleEvent && $app = $event->getCommand()->getApplication()) {
                 $output = $event->getOutput();
                 if ($output instanceof ConsoleOutputInterface) {
@@ -121,16 +134,5 @@ class DebugHandlersListener implements EventSubscriberInterface
             }
             $this->exceptionHandler = null;
         }
-    }
-
-    public static function getSubscribedEvents()
-    {
-        $events = array(KernelEvents::REQUEST => array('configure', 2048));
-
-        if (defined('Symfony\Component\Console\ConsoleEvents::COMMAND')) {
-            $events[ConsoleEvents::COMMAND] = array('configure', 2048);
-        }
-
-        return $events;
     }
 }

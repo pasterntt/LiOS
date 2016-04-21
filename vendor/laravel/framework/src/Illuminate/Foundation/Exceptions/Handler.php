@@ -92,7 +92,7 @@ class Handler implements ExceptionHandlerContract
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Exception  $e
-     * @return \Illuminate\Http\Response
+     * @return \Symfony\Component\HttpFoundation\Response
      */
     public function render($request, Exception $e)
     {
@@ -114,6 +114,17 @@ class Handler implements ExceptionHandlerContract
     }
 
     /**
+     * Determine if the given exception is an HTTP exception.
+     *
+     * @param  \Exception $e
+     * @return bool
+     */
+    protected function isHttpException(Exception $e)
+    {
+        return $e instanceof HttpException;
+    }
+
+    /**
      * Map exception into an illuminate response.
      *
      * @param  \Symfony\Component\HttpFoundation\Response  $response
@@ -127,18 +138,6 @@ class Handler implements ExceptionHandlerContract
         $response->exception = $e;
 
         return $response;
-    }
-
-    /**
-     * Render an exception to the console.
-     *
-     * @param  \Symfony\Component\Console\Output\OutputInterface  $output
-     * @param  \Exception  $e
-     * @return void
-     */
-    public function renderForConsole($output, Exception $e)
-    {
-        (new ConsoleApplication)->renderException($e, $output);
     }
 
     /**
@@ -206,13 +205,14 @@ EOF;
     }
 
     /**
-     * Determine if the given exception is an HTTP exception.
+     * Render an exception to the console.
      *
+     * @param  \Symfony\Component\Console\Output\OutputInterface $output
      * @param  \Exception  $e
-     * @return bool
+     * @return void
      */
-    protected function isHttpException(Exception $e)
+    public function renderForConsole($output, Exception $e)
     {
-        return $e instanceof HttpException;
+        (new ConsoleApplication)->renderException($e, $output);
     }
 }

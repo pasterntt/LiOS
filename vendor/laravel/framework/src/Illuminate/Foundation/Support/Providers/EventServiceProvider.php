@@ -29,7 +29,7 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot(DispatcherContract $events)
     {
-        foreach ($this->listen as $event => $listeners) {
+        foreach ($this->listens() as $event => $listeners) {
             foreach ($listeners as $listener) {
                 $events->listen($event, $listener);
             }
@@ -41,14 +41,6 @@ class EventServiceProvider extends ServiceProvider
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function register()
-    {
-        //
-    }
-
-    /**
      * Get the events and handlers.
      *
      * @return array
@@ -56,5 +48,13 @@ class EventServiceProvider extends ServiceProvider
     public function listens()
     {
         return $this->listen;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function register()
+    {
+        //
     }
 }

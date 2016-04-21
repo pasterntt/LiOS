@@ -99,6 +99,49 @@ trait AuthenticatesUsers
     }
 
     /**
+     * Get the login username to be used by the controller.
+     *
+     * @return string
+     */
+    public function loginUsername()
+    {
+        return property_exists($this, 'username') ? $this->username : 'email';
+    }
+
+    /**
+     * Determine if the class is using the ThrottlesLogins trait.
+     *
+     * @return bool
+     */
+    protected function isUsingThrottlesLoginsTrait()
+    {
+        return in_array(
+            ThrottlesLogins::class, class_uses_recursive(static::class)
+        );
+    }
+
+    /**
+     * Get the needed authorization credentials from the request.
+     *
+     * @param  \Illuminate\Http\Request $request
+     * @return array
+     */
+    protected function getCredentials(Request $request)
+    {
+        return $request->only($this->loginUsername(), 'password');
+    }
+
+    /**
+     * Get the guard to be used during authentication.
+     *
+     * @return string|null
+     */
+    protected function getGuard()
+    {
+        return property_exists($this, 'guard') ? $this->guard : null;
+    }
+
+    /**
      * Send the response after the user was authenticated.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -146,45 +189,34 @@ trait AuthenticatesUsers
     }
 
     /**
-     * Get the needed authorization credentials from the request.
+     * Log the user out of the application.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+     * @return \Illuminate\Http\Response
      */
-    protected function getCredentials(Request $request)
+    public function getLogout()
     {
-        return $request->only($this->loginUsername(), 'password');
+        return $this->logout();
     }
 
     /**
-     * Get the login username to be used by the controller.
+     * Log the user out of the application.
      *
-     * @return string
+     * @return \Illuminate\Http\Response
      */
-    public function loginUsername()
+    public function logout()
     {
-        return property_exists($this, 'username') ? $this->username : 'email';
+        Auth::guard($this->getGuard())->logout();
+
+        return redirect(property_exists($this, 'redirectAfterLogout') ? $this->redirectAfterLogout : '/');
     }
 
     /**
-     * Determine if the class is using the ThrottlesLogins trait.
-     *
-     * @return bool
+     * Get the guest middleware for the application.
      */
-    protected function isUsingThrottlesLoginsTrait()
+    public function guestMiddleware()
     {
-        return in_array(
-            ThrottlesLogins::class, class_uses_recursive(get_class($this))
-        );
-    }
+        $guard = $this->getGuard();
 
-    /**
-     * Get the guard to be used during authentication.
-     *
-     * @return string|null
-     */
-    protected function getGuard()
-    {
-        return property_exists($this, 'guard') ? $this->guard : null;
+        return $guard ? 'guest:' . $guard : 'guest';
     }
 }

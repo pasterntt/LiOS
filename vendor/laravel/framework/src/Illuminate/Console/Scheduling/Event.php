@@ -62,55 +62,48 @@ class Event
      * @var bool
      */
     public $withoutOverlapping = false;
-
-    /**
-     * The array of filter callbacks.
-     *
-     * @var array
-     */
-    protected $filters = [];
-
-    /**
-     * The array of reject callbacks.
-     *
-     * @var array
-     */
-    protected $rejects = [];
-
     /**
      * The location that output should be sent to.
      *
      * @var string
      */
     public $output = '/dev/null';
-
-    /**
-     * Indicates whether output should be appended.
-     *
-     * @var bool
-     */
-    protected $shouldAppendOutput = false;
-
-    /**
-     * The array of callbacks to be run before the event is started.
-     *
-     * @var array
-     */
-    protected $beforeCallbacks = [];
-
-    /**
-     * The array of callbacks to be run after the event is finished.
-     *
-     * @var array
-     */
-    protected $afterCallbacks = [];
-
     /**
      * The human readable description of the event.
      *
      * @var string
      */
     public $description;
+    /**
+     * The array of filter callbacks.
+     *
+     * @var array
+     */
+    protected $filters = [];
+    /**
+     * The array of reject callbacks.
+     *
+     * @var array
+     */
+    protected $rejects = [];
+    /**
+     * Indicates whether output should be appended.
+     *
+     * @var bool
+     */
+    protected $shouldAppendOutput = false;
+    /**
+     * The array of callbacks to be run before the event is started.
+     *
+     * @var array
+     */
+    protected $beforeCallbacks = [];
+    /**
+     * The array of callbacks to be run after the event is finished.
+     *
+     * @var array
+     */
+    protected $afterCallbacks = [];
 
     /**
      * Create a new event instance.
@@ -176,19 +169,6 @@ class Event
     }
 
     /**
-     * Call all of the "after" callbacks for the event.
-     *
-     * @param  \Illuminate\Contracts\Container\Container  $container
-     * @return void
-     */
-    protected function callAfterCallbacks(Container $container)
-    {
-        foreach ($this->afterCallbacks as $callback) {
-            $container->call($callback);
-        }
-    }
-
-    /**
      * Build the command string.
      *
      * @return string
@@ -200,7 +180,11 @@ class Event
         $redirect = $this->shouldAppendOutput ? ' >> ' : ' > ';
 
         if ($this->withoutOverlapping) {
-            $command = '(touch '.$this->mutexPath().'; '.$this->command.'; rm '.$this->mutexPath().')'.$redirect.$output.' 2>&1 &';
+            if (windows_os()) {
+                $command = '(echo \'\' > "' . $this->mutexPath() . '" & ' . $this->command . ' & del "' . $this->mutexPath() . '")' . $redirect . $output . ' 2>&1 &';
+            } else {
+                $command = '(touch ' . $this->mutexPath() . '; ' . $this->command . '; rm ' . $this->mutexPath() . ')' . $redirect . $output . ' 2>&1 &';
+            }
         } else {
             $command = $this->command.$redirect.$output.' 2>&1 &';
         }
@@ -215,7 +199,20 @@ class Event
      */
     protected function mutexPath()
     {
-        return storage_path('framework/schedule-'.sha1($this->expression.$this->command));
+        return storage_path('framework' . DIRECTORY_SEPARATOR . 'schedule-' . sha1($this->expression . $this->command));
+    }
+
+    /**
+     * Call all of the "after" callbacks for the event.
+     *
+     * @param  \Illuminate\Contracts\Container\Container $container
+     * @return void
+     */
+    protected function callAfterCallbacks(Container $container)
+    {
+        foreach ($this->afterCallbacks as $callback) {
+            $container->call($callback);
+        }
     }
 
     /**
@@ -235,6 +232,16 @@ class Event
     }
 
     /**
+     * Determine if the event runs in maintenance mode.
+     *
+     * @return bool
+     */
+    public function runsInMaintenanceMode()
+    {
+        return $this->evenInMaintenanceMode;
+    }
+
+    /**
      * Determine if the Cron expression passes.
      *
      * @return bool
@@ -248,6 +255,17 @@ class Event
         }
 
         return CronExpression::factory($this->expression)->isDue($date->toDateTimeString());
+    }
+
+    /**
+     * Determine if the event runs in the given environment.
+     *
+     * @param  string $environment
+     * @return bool
+     */
+    public function runsInEnvironment($environment)
+    {
+        return empty($this->environments) || in_array($environment, $this->environments);
     }
 
     /**
@@ -274,24 +292,13 @@ class Event
     }
 
     /**
-     * Determine if the event runs in the given environment.
+     * Schedule the event to run hourly.
      *
-     * @param  string  $environment
-     * @return bool
+     * @return $this
      */
-    public function runsInEnvironment($environment)
+    public function hourly()
     {
-        return empty($this->environments) || in_array($environment, $this->environments);
-    }
-
-    /**
-     * Determine if the event runs in maintenance mode.
-     *
-     * @return bool
-     */
-    public function runsInMaintenanceMode()
-    {
-        return $this->evenInMaintenanceMode;
+        return $this->cron('0 * * * * *');
     }
 
     /**
@@ -305,16 +312,6 @@ class Event
         $this->expression = $expression;
 
         return $this;
-    }
-
-    /**
-     * Schedule the event to run hourly.
-     *
-     * @return $this
-     */
-    public function hourly()
-    {
-        return $this->cron('0 * * * * *');
     }
 
     /**
@@ -353,6 +350,22 @@ class Event
     }
 
     /**
+     * Splice the given value into the given position of the expression.
+     *
+     * @param  int $position
+     * @param  string $value
+     * @return $this
+     */
+    protected function spliceIntoPosition($position, $value)
+    {
+        $segments = explode(' ', $this->expression);
+
+        $segments[$position - 1] = $value;
+
+        return $this->cron(implode(' ', $segments));
+    }
+
+    /**
      * Schedule the event to run twice daily.
      *
      * @param  int  $first
@@ -385,6 +398,19 @@ class Event
     public function mondays()
     {
         return $this->days(1);
+    }
+
+    /**
+     * Set the days of the week the command should run on.
+     *
+     * @param  array|mixed $days
+     * @return $this
+     */
+    public function days($days)
+    {
+        $days = is_array($days) ? $days : func_get_args();
+
+        return $this->spliceIntoPosition(5, implode(',', $days));
     }
 
     /**
@@ -482,6 +508,20 @@ class Event
     }
 
     /**
+     * Schedule the event to run monthly on a given day and time.
+     *
+     * @param int $day
+     * @param string $time
+     * @return $this
+     */
+    public function monthlyOn($day = 1, $time = '0:0')
+    {
+        $this->dailyAt($time);
+
+        return $this->spliceIntoPosition(3, $day);
+    }
+
+    /**
      * Schedule the event to run quarterly.
      *
      * @return $this
@@ -539,19 +579,6 @@ class Event
     public function everyThirtyMinutes()
     {
         return $this->cron('0,30 * * * * *');
-    }
-
-    /**
-     * Set the days of the week the command should run on.
-     *
-     * @param  array|mixed  $days
-     * @return $this
-     */
-    public function days($days)
-    {
-        $days = is_array($days) ? $days : func_get_args();
-
-        return $this->spliceIntoPosition(5, implode(',', $days));
     }
 
     /**
@@ -625,9 +652,9 @@ class Event
      * @param  \Closure  $callback
      * @return $this
      */
-    public function when(Closure $callback)
+    public function skip(Closure $callback)
     {
-        $this->filters[] = $callback;
+        $this->rejects[] = $callback;
 
         return $this;
     }
@@ -638,11 +665,22 @@ class Event
      * @param  \Closure  $callback
      * @return $this
      */
-    public function skip(Closure $callback)
+    public function when(Closure $callback)
     {
-        $this->rejects[] = $callback;
+        $this->filters[] = $callback;
 
         return $this;
+    }
+
+    /**
+     * Append the output of the command to a given location.
+     *
+     * @param  string $location
+     * @return $this
+     */
+    public function appendOutputTo($location)
+    {
+        return $this->sendOutputTo($location, true);
     }
 
     /**
@@ -662,14 +700,16 @@ class Event
     }
 
     /**
-     * Append the output of the command to a given location.
+     * E-mail the results of the scheduled operation if it produces output.
      *
-     * @param  string  $location
+     * @param  array|mixed $addresses
      * @return $this
+     *
+     * @throws \LogicException
      */
-    public function appendOutputTo($location)
+    public function emailWrittenOutputTo($addresses)
     {
-        return $this->sendOutputTo($location, true);
+        return $this->emailOutputTo($addresses, true);
     }
 
     /**
@@ -695,16 +735,16 @@ class Event
     }
 
     /**
-     * E-mail the results of the scheduled operation if it produces output.
+     * Register a callback to be called after the operation.
      *
-     * @param  array|mixed  $addresses
+     * @param  \Closure $callback
      * @return $this
-     *
-     * @throws \LogicException
      */
-    public function emailWrittenOutputTo($addresses)
+    public function then(Closure $callback)
     {
-        return $this->emailOutputTo($addresses, true);
+        $this->afterCallbacks[] = $callback;
+
+        return $this;
     }
 
     /**
@@ -712,7 +752,7 @@ class Event
      *
      * @param  \Illuminate\Contracts\Mail\Mailer  $mailer
      * @param  array  $addresses
-     * @param  bool  $includeEmpty
+     * @param  bool $onlyIfOutputExists
      * @return void
      */
     protected function emailOutput(Mailer $mailer, $addresses, $onlyIfOutputExists = false)
@@ -797,19 +837,6 @@ class Event
     }
 
     /**
-     * Register a callback to be called after the operation.
-     *
-     * @param  \Closure  $callback
-     * @return $this
-     */
-    public function then(Closure $callback)
-    {
-        $this->afterCallbacks[] = $callback;
-
-        return $this;
-    }
-
-    /**
      * Set the human-friendly description of the event.
      *
      * @param  string  $description
@@ -831,22 +858,6 @@ class Event
         $this->description = $description;
 
         return $this;
-    }
-
-    /**
-     * Splice the given value into the given position of the expression.
-     *
-     * @param  int  $position
-     * @param  string  $value
-     * @return $this
-     */
-    protected function spliceIntoPosition($position, $value)
-    {
-        $segments = explode(' ', $this->expression);
-
-        $segments[$position - 1] = $value;
-
-        return $this->cron(implode(' ', $segments));
     }
 
     /**

@@ -30,11 +30,16 @@ use XdgBaseDir\Xdg;
  */
 class Configuration
 {
+    const COLOR_MODE_AUTO = 'auto';
+    const COLOR_MODE_FORCED = 'forced';
+    const COLOR_MODE_DISABLED = 'disabled';
+
     private static $AVAILABLE_OPTIONS = array(
         'defaultIncludes', 'useReadline', 'usePcntl', 'codeCleaner', 'pager',
         'loop', 'configDir', 'dataDir', 'runtimeDir', 'manualDbFile',
-        'requireSemicolons', 'historySize', 'eraseDuplicates', 'tabCompletion',
-        'errorLoggingLevel', 'warnOnMultipleConfigs',
+        'requireSemicolons', 'useUnicode', 'historySize', 'eraseDuplicates',
+        'tabCompletion', 'errorLoggingLevel', 'warnOnMultipleConfigs',
+        'colorMode',
     );
 
     private $defaultIncludes;
@@ -52,10 +57,12 @@ class Configuration
     private $usePcntl;
     private $newCommands = array();
     private $requireSemicolons = false;
+    private $useUnicode;
     private $tabCompletion;
     private $tabCompletionMatchers = array();
     private $errorLoggingLevel = E_ALL;
     private $warnOnMultipleConfigs = false;
+    private $colorMode;
 
     // services
     private $readline;
@@ -77,6 +84,8 @@ class Configuration
      */
     public function __construct(array $config = array())
     {
+        $this->setColorMode(self::COLOR_MODE_AUTO);
+
         // explicit configFile option
         if (isset($config['configFile'])) {
             $this->configFile = $config['configFile'];
@@ -96,6 +105,48 @@ class Configuration
         // go go gadget, config!
         $this->loadConfig($config);
         $this->init();
+    }
+
+    /**
+     * Set the current color mode.
+     *
+     * @param string $colorMode
+     */
+    public function setColorMode($colorMode)
+    {
+        $validColorModes = array(
+            self::COLOR_MODE_AUTO,
+            self::COLOR_MODE_FORCED,
+            self::COLOR_MODE_DISABLED,
+        );
+
+        if (in_array($colorMode, $validColorModes)) {
+            $this->colorMode = $colorMode;
+        } else {
+            throw new \InvalidArgumentException('invalid color mode: ' . $colorMode);
+        }
+    }
+
+    /**
+     * Load configuration values from an array of options.
+     *
+     * @param array $options
+     */
+    public function loadConfig(array $options)
+    {
+        foreach (self::$AVAILABLE_OPTIONS as $option) {
+            if (isset($options[$option])) {
+                $method = 'set' . ucfirst($option);
+                $this->$method($options[$option]);
+            }
+        }
+
+        foreach (array('commands', 'tabCompletionMatchers', 'casters') as $option) {
+            if (isset($options[$option])) {
+                $method = 'add' . ucfirst($option);
+                $this->$method($options[$option]);
+            }
+        }
     }
 
     /**
@@ -156,45 +207,6 @@ class Configuration
     }
 
     /**
-     * Get the local PsySH config file.
-     *
-     * Searches for a project specific config file `.psysh.php` in the current
-     * working directory.
-     *
-     * @return string
-     */
-    public function getLocalConfigFile()
-    {
-        $localConfig = getenv('PWD') . '/.psysh.php';
-
-        if (@is_file($localConfig)) {
-            return $localConfig;
-        }
-    }
-
-    /**
-     * Load configuration values from an array of options.
-     *
-     * @param array $options
-     */
-    public function loadConfig(array $options)
-    {
-        foreach (self::$AVAILABLE_OPTIONS as $option) {
-            if (isset($options[$option])) {
-                $method = 'set' . ucfirst($option);
-                $this->$method($options[$option]);
-            }
-        }
-
-        foreach (array('commands', 'tabCompletionMatchers', 'casters') as $option) {
-            if (isset($options[$option])) {
-                $method = 'add' . ucfirst($option);
-                $this->$method($options[$option]);
-            }
-        }
-    }
-
-    /**
      * Load a configuration file (default: `$HOME/.config/psysh/config.php`).
      *
      * This configuration instance will be available to the config file as $config.
@@ -226,13 +238,20 @@ class Configuration
     }
 
     /**
-     * Set files to be included by default at the start of each shell session.
+     * Get the local PsySH config file.
      *
-     * @param array $includes
+     * Searches for a project specific config file `.psysh.php` in the current
+     * working directory.
+     *
+     * @return string
      */
-    public function setDefaultIncludes(array $includes = array())
+    public function getLocalConfigFile()
     {
-        $this->defaultIncludes = $includes;
+        $localConfig = getenv('PWD') . '/.psysh.php';
+
+        if (@is_file($localConfig)) {
+            return $localConfig;
+        }
     }
 
     /**
@@ -246,13 +265,13 @@ class Configuration
     }
 
     /**
-     * Set the shell's config directory location.
+     * Set files to be included by default at the start of each shell session.
      *
-     * @param string $dir
+     * @param array $includes
      */
-    public function setConfigDir($dir)
+    public function setDefaultIncludes(array $includes = array())
     {
-        $this->configDir = (string) $dir;
+        $this->defaultIncludes = $includes;
     }
 
     /**
@@ -266,13 +285,13 @@ class Configuration
     }
 
     /**
-     * Set the shell's data directory location.
+     * Set the shell's config directory location.
      *
      * @param string $dir
      */
-    public function setDataDir($dir)
+    public function setConfigDir($dir)
     {
-        $this->dataDir = (string) $dir;
+        $this->configDir = (string)$dir;
     }
 
     /**
@@ -286,13 +305,30 @@ class Configuration
     }
 
     /**
-     * Set the shell's temporary directory location.
+     * Set the shell's data directory location.
      *
      * @param string $dir
      */
-    public function setRuntimeDir($dir)
+    public function setDataDir($dir)
     {
-        $this->runtimeDir = (string) $dir;
+        $this->dataDir = (string)$dir;
+    }
+
+    /**
+     * Get a temporary file of type $type for process $pid.
+     *
+     * The file will be created inside the current temporary directory.
+     *
+     * @see self::getRuntimeDir
+     *
+     * @param string $type
+     * @param int $pid
+     *
+     * @return string Temporary file name
+     */
+    public function getTempFile($type, $pid)
+    {
+        return tempnam($this->getRuntimeDir(), $type . '_' . $pid . '_');
     }
 
     /**
@@ -317,13 +353,116 @@ class Configuration
     }
 
     /**
-     * Set the readline history file path.
+     * Set the shell's temporary directory location.
      *
-     * @param string $file
+     * @param string $dir
      */
-    public function setHistoryFile($file)
+    public function setRuntimeDir($dir)
     {
-        $this->historyFile = (string) $file;
+        $this->runtimeDir = (string)$dir;
+    }
+
+    /**
+     * Get a filename suitable for a FIFO pipe of $type for process $pid.
+     *
+     * The pipe will be created inside the current temporary directory.
+     *
+     * @param string $type
+     * @param id $pid
+     *
+     * @return string Pipe name
+     */
+    public function getPipe($type, $pid)
+    {
+        return sprintf('%s/%s_%s', $this->getRuntimeDir(), $type, $pid);
+    }
+
+    /**
+     * Check whether this PHP instance has Readline available.
+     *
+     * @return bool True if Readline is available.
+     */
+    public function hasReadline()
+    {
+        return $this->hasReadline;
+    }
+
+    /**
+     * Enable or disable Readline usage.
+     *
+     * @param bool $useReadline
+     */
+    public function setUseReadline($useReadline)
+    {
+        $this->useReadline = (bool)$useReadline;
+    }
+
+    /**
+     * Get the Psy Shell readline service.
+     *
+     * By default, this service uses (in order of preference):
+     *
+     *  * GNU Readline
+     *  * Libedit
+     *  * A transient array-based readline emulation.
+     *
+     * @return Readline
+     */
+    public function getReadline()
+    {
+        if (!isset($this->readline)) {
+            $className = $this->getReadlineClass();
+            $this->readline = new $className(
+                $this->getHistoryFile(),
+                $this->getHistorySize(),
+                $this->getEraseDuplicates()
+            );
+        }
+
+        return $this->readline;
+    }
+
+    /**
+     * Set the Psy Shell readline service.
+     *
+     * @param Readline $readline
+     */
+    public function setReadline(Readline $readline)
+    {
+        $this->readline = $readline;
+    }
+
+    /**
+     * Get the appropriate Readline implementation class name.
+     *
+     * @see self::getReadline
+     *
+     * @return string
+     */
+    private function getReadlineClass()
+    {
+        if ($this->useReadline()) {
+            if (GNUReadline::isSupported()) {
+                return 'Psy\Readline\GNUReadline';
+            } elseif (Libedit::isSupported()) {
+                return 'Psy\Readline\Libedit';
+            }
+        }
+
+        return 'Psy\Readline\Transient';
+    }
+
+    /**
+     * Check whether to use Readline.
+     *
+     * If `setUseReadline` as been set to true, but Readline is not actually
+     * available, this will return false.
+     *
+     * @return bool True if the current Shell should use Readline.
+     */
+    public function useReadline()
+    {
+        return isset($this->useReadline) ? ($this->hasReadline && $this->useReadline) : $this->hasReadline;
     }
 
     /**
@@ -379,13 +518,13 @@ class Configuration
     }
 
     /**
-     * Set the readline max history size.
+     * Set the readline history file path.
      *
-     * @param int $value
+     * @param string $file
      */
-    public function setHistorySize($value)
+    public function setHistoryFile($file)
     {
-        $this->historySize = (int) $value;
+        $this->historyFile = (string)$file;
     }
 
     /**
@@ -399,13 +538,13 @@ class Configuration
     }
 
     /**
-     * Sets whether readline erases old duplicate history entries.
+     * Set the readline max history size.
      *
-     * @param bool $value
+     * @param int $value
      */
-    public function setEraseDuplicates($value)
+    public function setHistorySize($value)
     {
-        $this->eraseDuplicates = (bool) $value;
+        $this->historySize = (int)$value;
     }
 
     /**
@@ -419,123 +558,13 @@ class Configuration
     }
 
     /**
-     * Get a temporary file of type $type for process $pid.
+     * Sets whether readline erases old duplicate history entries.
      *
-     * The file will be created inside the current temporary directory.
-     *
-     * @see self::getRuntimeDir
-     *
-     * @param string $type
-     * @param int    $pid
-     *
-     * @return string Temporary file name
+     * @param bool $value
      */
-    public function getTempFile($type, $pid)
+    public function setEraseDuplicates($value)
     {
-        return tempnam($this->getRuntimeDir(), $type . '_' . $pid . '_');
-    }
-
-    /**
-     * Get a filename suitable for a FIFO pipe of $type for process $pid.
-     *
-     * The pipe will be created inside the current temporary directory.
-     *
-     * @param string $type
-     * @param id     $pid
-     *
-     * @return string Pipe name
-     */
-    public function getPipe($type, $pid)
-    {
-        return sprintf('%s/%s_%s', $this->getRuntimeDir(), $type, $pid);
-    }
-
-    /**
-     * Check whether this PHP instance has Readline available.
-     *
-     * @return bool True if Readline is available.
-     */
-    public function hasReadline()
-    {
-        return $this->hasReadline;
-    }
-
-    /**
-     * Enable or disable Readline usage.
-     *
-     * @param bool $useReadline
-     */
-    public function setUseReadline($useReadline)
-    {
-        $this->useReadline = (bool) $useReadline;
-    }
-
-    /**
-     * Check whether to use Readline.
-     *
-     * If `setUseReadline` as been set to true, but Readline is not actually
-     * available, this will return false.
-     *
-     * @return bool True if the current Shell should use Readline.
-     */
-    public function useReadline()
-    {
-        return isset($this->useReadline) ? ($this->hasReadline && $this->useReadline) : $this->hasReadline;
-    }
-
-    /**
-     * Set the Psy Shell readline service.
-     *
-     * @param Readline $readline
-     */
-    public function setReadline(Readline $readline)
-    {
-        $this->readline = $readline;
-    }
-
-    /**
-     * Get the Psy Shell readline service.
-     *
-     * By default, this service uses (in order of preference):
-     *
-     *  * GNU Readline
-     *  * Libedit
-     *  * A transient array-based readline emulation.
-     *
-     * @return Readline
-     */
-    public function getReadline()
-    {
-        if (!isset($this->readline)) {
-            $className = $this->getReadlineClass();
-            $this->readline = new $className(
-                $this->getHistoryFile(),
-                $this->getHistorySize(),
-                $this->getEraseDuplicates()
-            );
-        }
-
-        return $this->readline;
-    }
-
-    /**
-     * Get the appropriate Readline implementation class name.
-     *
-     * @see self::getReadline
-     *
-     * @return string
-     */
-    private function getReadlineClass()
-    {
-        if ($this->useReadline()) {
-            if (GNUReadline::isSupported()) {
-                return 'Psy\Readline\GNUReadline';
-            } elseif (Libedit::isSupported()) {
-                return 'Psy\Readline\Libedit';
-            }
-        }
-
-        return 'Psy\Readline\Transient';
+        $this->eraseDuplicates = (bool)$value;
     }
 
     /**
@@ -556,19 +585,6 @@ class Configuration
     public function setUsePcntl($usePcntl)
     {
         $this->usePcntl = (bool) $usePcntl;
-    }
-
-    /**
-     * Check whether to use Pcntl.
-     *
-     * If `setUsePcntl` has been set to true, but Pcntl is not actually
-     * available, this will return false.
-     *
-     * @return bool True if the current Shell should use Pcntl.
-     */
-    public function usePcntl()
-    {
-        return isset($this->usePcntl) ? ($this->hasPcntl && $this->usePcntl) : $this->hasPcntl;
     }
 
     /**
@@ -595,6 +611,37 @@ class Configuration
     public function requireSemicolons()
     {
         return $this->requireSemicolons;
+    }
+
+    /**
+     * Enable or disable Unicode in PsySH specific output.
+     *
+     * Note that this does not disable Unicode output in general, it just makes
+     * it so PsySH won't output any itself.
+     *
+     * @param bool $useUnicode
+     */
+    public function setUseUnicode($useUnicode)
+    {
+        $this->useUnicode = (bool)$useUnicode;
+    }
+
+    /**
+     * Check whether to use Unicode in PsySH specific output.
+     *
+     * Note that this does not disable Unicode output in general, it just makes
+     * it so PsySH won't output any itself.
+     *
+     * @return bool
+     */
+    public function useUnicode()
+    {
+        if (isset($this->useUnicode)) {
+            return $this->useUnicode;
+        }
+
+        // TODO: detect `chsh` != 65001 on Windows and return false
+        return true;
     }
 
     /**
@@ -656,16 +703,6 @@ class Configuration
     }
 
     /**
-     * Enable or disable tab completion.
-     *
-     * @param bool $tabCompletion
-     */
-    public function setTabCompletion($tabCompletion)
-    {
-        $this->tabCompletion = (bool) $tabCompletion;
-    }
-
-    /**
      * Check whether to use tab completion.
      *
      * If `setTabCompletion` has been set to true, but readline is not actually
@@ -679,84 +716,13 @@ class Configuration
     }
 
     /**
-     * Set the Shell Output service.
+     * Enable or disable tab completion.
      *
-     * @param ShellOutput $output
+     * @param bool $tabCompletion
      */
-    public function setOutput(ShellOutput $output)
+    public function setTabCompletion($tabCompletion)
     {
-        $this->output = $output;
-    }
-
-    /**
-     * Get a Shell Output service instance.
-     *
-     * If none has been explicitly provided, this will create a new instance
-     * with VERBOSITY_NORMAL and the output page supplied by self::getPager
-     *
-     * @see self::getPager
-     *
-     * @return ShellOutput
-     */
-    public function getOutput()
-    {
-        if (!isset($this->output)) {
-            $this->output = new ShellOutput(ShellOutput::VERBOSITY_NORMAL, null, null, $this->getPager());
-        }
-
-        return $this->output;
-    }
-
-    /**
-     * Set the OutputPager service.
-     *
-     * If a string is supplied, a ProcOutputPager will be used which shells out
-     * to the specified command.
-     *
-     * @throws \InvalidArgumentException if $pager is not a string or OutputPager instance.
-     *
-     * @param string|OutputPager $pager
-     */
-    public function setPager($pager)
-    {
-        if ($pager && !is_string($pager) && !$pager instanceof OutputPager) {
-            throw new \InvalidArgumentException('Unexpected pager instance.');
-        }
-
-        $this->pager = $pager;
-    }
-
-    /**
-     * Get an OutputPager instance or a command for an external Proc pager.
-     *
-     * If no Pager has been explicitly provided, and Pcntl is available, this
-     * will default to `cli.pager` ini value, falling back to `which less`.
-     *
-     * @return string|OutputPager
-     */
-    public function getPager()
-    {
-        if (!isset($this->pager) && $this->usePcntl()) {
-            if ($pager = ini_get('cli.pager')) {
-                // use the default pager (5.4+)
-                $this->pager = $pager;
-            } elseif ($less = exec('which less 2>/dev/null')) {
-                // check for the presence of less...
-                $this->pager = $less . ' -R -S -F -X';
-            }
-        }
-
-        return $this->pager;
-    }
-
-    /**
-     * Set the Shell evaluation Loop service.
-     *
-     * @param Loop $loop
-     */
-    public function setLoop(Loop $loop)
-    {
-        $this->loop = $loop;
+        $this->tabCompletion = (bool)$tabCompletion;
     }
 
     /**
@@ -778,6 +744,16 @@ class Configuration
         }
 
         return $this->loop;
+    }
+
+    /**
+     * Set the Shell evaluation Loop service.
+     *
+     * @param Loop $loop
+     */
+    public function setLoop(Loop $loop)
+    {
+        $this->loop = $loop;
     }
 
     /**
@@ -869,41 +845,6 @@ class Configuration
     }
 
     /**
-     * Set the PHP manual database file.
-     *
-     * This file should be an SQLite database generated from the phpdoc source
-     * with the `bin/build_manual` script.
-     *
-     * @param string $filename
-     */
-    public function setManualDbFile($filename)
-    {
-        $this->manualDbFile = (string) $filename;
-    }
-
-    /**
-     * Get the current PHP manual database file.
-     *
-     * @return string Default: '~/.local/share/psysh/php_manual.sqlite'
-     */
-    public function getManualDbFile()
-    {
-        if (isset($this->manualDbFile)) {
-            return $this->manualDbFile;
-        }
-
-        $files = ConfigPaths::getDataFiles(array('php_manual.sqlite'), $this->dataDir);
-        if (!empty($files)) {
-            if ($this->warnOnMultipleConfigs && count($files) > 1) {
-                $msg = sprintf('Multiple manual database files found: %s. Using %s', implode($files, ', '), $files[0]);
-                trigger_error($msg, E_USER_NOTICE);
-            }
-
-            return $this->manualDbFile = $files[0];
-        }
-    }
-
-    /**
      * Get a PHP manual database connection.
      *
      * @return PDO
@@ -929,6 +870,41 @@ class Configuration
     }
 
     /**
+     * Get the current PHP manual database file.
+     *
+     * @return string Default: '~/.local/share/psysh/php_manual.sqlite'
+     */
+    public function getManualDbFile()
+    {
+        if (isset($this->manualDbFile)) {
+            return $this->manualDbFile;
+        }
+
+        $files = ConfigPaths::getDataFiles(array('php_manual.sqlite'), $this->dataDir);
+        if (!empty($files)) {
+            if ($this->warnOnMultipleConfigs && count($files) > 1) {
+                $msg = sprintf('Multiple manual database files found: %s. Using %s', implode($files, ', '), $files[0]);
+                trigger_error($msg, E_USER_NOTICE);
+            }
+
+            return $this->manualDbFile = $files[0];
+        }
+    }
+
+    /**
+     * Set the PHP manual database file.
+     *
+     * This file should be an SQLite database generated from the phpdoc source
+     * with the `bin/build_manual` script.
+     *
+     * @param string $filename
+     */
+    public function setManualDbFile($filename)
+    {
+        $this->manualDbFile = (string)$filename;
+    }
+
+    /**
      * Add an array of casters definitions.
      *
      * @param array $casters
@@ -950,6 +926,121 @@ class Configuration
         }
 
         return $this->presenter;
+    }
+
+    /**
+     * Get a Shell Output service instance.
+     *
+     * If none has been explicitly provided, this will create a new instance
+     * with VERBOSITY_NORMAL and the output page supplied by self::getPager
+     *
+     * @see self::getPager
+     *
+     * @return ShellOutput
+     */
+    public function getOutput()
+    {
+        if (!isset($this->output)) {
+            $this->output = new ShellOutput(
+                ShellOutput::VERBOSITY_NORMAL,
+                $this->getOutputDecorated(),
+                null,
+                $this->getPager()
+            );
+        }
+
+        return $this->output;
+    }
+
+    /**
+     * Set the Shell Output service.
+     *
+     * @param ShellOutput $output
+     */
+    public function setOutput(ShellOutput $output)
+    {
+        $this->output = $output;
+    }
+
+    /**
+     * Get the decoration (i.e. color) setting for the Shell Output service.
+     *
+     * @return null|bool 3-state boolean corresponding to the current color mode
+     */
+    public function getOutputDecorated()
+    {
+        if ($this->colorMode() === self::COLOR_MODE_AUTO) {
+            return;
+        } elseif ($this->colorMode() === self::COLOR_MODE_FORCED) {
+            return true;
+        } elseif ($this->colorMode() === self::COLOR_MODE_DISABLED) {
+            return false;
+        }
+    }
+
+    /**
+     * Get the current color mode.
+     *
+     * @return string
+     */
+    public function colorMode()
+    {
+        return $this->colorMode;
+    }
+
+    /**
+     * Get an OutputPager instance or a command for an external Proc pager.
+     *
+     * If no Pager has been explicitly provided, and Pcntl is available, this
+     * will default to `cli.pager` ini value, falling back to `which less`.
+     *
+     * @return string|OutputPager
+     */
+    public function getPager()
+    {
+        if (!isset($this->pager) && $this->usePcntl()) {
+            if ($pager = ini_get('cli.pager')) {
+                // use the default pager (5.4+)
+                $this->pager = $pager;
+            } elseif ($less = exec('which less 2>/dev/null')) {
+                // check for the presence of less...
+                $this->pager = $less . ' -R -S -F -X';
+            }
+        }
+
+        return $this->pager;
+    }
+
+    /**
+     * Set the OutputPager service.
+     *
+     * If a string is supplied, a ProcOutputPager will be used which shells out
+     * to the specified command.
+     *
+     * @throws \InvalidArgumentException if $pager is not a string or OutputPager instance.
+     *
+     * @param string|OutputPager $pager
+     */
+    public function setPager($pager)
+    {
+        if ($pager && !is_string($pager) && !$pager instanceof OutputPager) {
+            throw new \InvalidArgumentException('Unexpected pager instance.');
+        }
+
+        $this->pager = $pager;
+    }
+
+    /**
+     * Check whether to use Pcntl.
+     *
+     * If `setUsePcntl` has been set to true, but Pcntl is not actually
+     * available, this will return false.
+     *
+     * @return bool True if the current Shell should use Pcntl.
+     */
+    public function usePcntl()
+    {
+        return isset($this->usePcntl) ? ($this->hasPcntl && $this->usePcntl) : $this->hasPcntl;
     }
 
     /**

@@ -71,39 +71,23 @@ class PHPUnit_Framework_Constraint_TraversableContains extends PHPUnit_Framework
 
         if (is_object($this->value)) {
             foreach ($other as $element) {
-                if (($this->checkForObjectIdentity &&
-                     $element === $this->value) ||
-                    (!$this->checkForObjectIdentity &&
-                     $element == $this->value)) {
+                if ($this->checkForObjectIdentity && $element === $this->value) {
+                    return true;
+                } else if (!$this->checkForObjectIdentity && $element == $this->value) {
                     return true;
                 }
             }
         } else {
             foreach ($other as $element) {
-                if (($this->checkForNonObjectIdentity &&
-                     $element === $this->value) ||
-                    (!$this->checkForNonObjectIdentity &&
-                     $element == $this->value)) {
+                if ($this->checkForNonObjectIdentity && $element === $this->value) {
+                    return true;
+                } else if (!$this->checkForNonObjectIdentity && $element == $this->value) {
                     return true;
                 }
             }
         }
 
         return false;
-    }
-
-    /**
-     * Returns a string representation of the constraint.
-     *
-     * @return string
-     */
-    public function toString()
-    {
-        if (is_string($this->value) && strpos($this->value, "\n") !== false) {
-            return 'contains "' . $this->value . '"';
-        } else {
-            return 'contains ' . $this->exporter->export($this->value);
-        }
     }
 
     /**
@@ -123,5 +107,19 @@ class PHPUnit_Framework_Constraint_TraversableContains extends PHPUnit_Framework
             is_array($other) ? 'an array' : 'a traversable',
             $this->toString()
         );
+    }
+
+    /**
+     * Returns a string representation of the constraint.
+     *
+     * @return string
+     */
+    public function toString()
+    {
+        if (is_string($this->value) && strpos($this->value, "\n") !== false) {
+            return 'contains "' . $this->value . '"';
+        } else {
+            return 'contains ' . $this->exporter->export($this->value);
+        }
     }
 }

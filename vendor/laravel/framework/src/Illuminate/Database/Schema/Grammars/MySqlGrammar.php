@@ -65,6 +65,8 @@ class MySqlGrammar extends Grammar
 
         if (isset($blueprint->engine)) {
             $sql .= ' engine = '.$blueprint->engine;
+        } elseif (!is_null($engine = $connection->getConfig('engine'))) {
+            $sql .= ' engine = ' . $engine;
         }
 
         return $sql;
@@ -126,6 +128,25 @@ class MySqlGrammar extends Grammar
     }
 
     /**
+     * Compile an index creation command.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
+     * @param  \Illuminate\Support\Fluent  $command
+     * @param  string $type
+     * @return string
+     */
+    protected function compileKey(Blueprint $blueprint, Fluent $command, $type)
+    {
+        $columns = $this->columnize($command->columns);
+
+        $table = $this->wrapTable($blueprint);
+
+        $index = $this->wrap($command->index);
+
+        return "alter table {$table} add {$type} {$index}($columns)";
+    }
+
+    /**
      * Compile a unique key command.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
@@ -147,23 +168,6 @@ class MySqlGrammar extends Grammar
     public function compileIndex(Blueprint $blueprint, Fluent $command)
     {
         return $this->compileKey($blueprint, $command, 'index');
-    }
-
-    /**
-     * Compile an index creation command.
-     *
-     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $command
-     * @param  string  $type
-     * @return string
-     */
-    protected function compileKey(Blueprint $blueprint, Fluent $command, $type)
-    {
-        $columns = $this->columnize($command->columns);
-
-        $table = $this->wrapTable($blueprint);
-
-        return "alter table {$table} add {$type} `{$command->index}`($columns)";
     }
 
     /**
@@ -229,7 +233,9 @@ class MySqlGrammar extends Grammar
     {
         $table = $this->wrapTable($blueprint);
 
-        return "alter table {$table} drop index `{$command->index}`";
+        $index = $this->wrap($command->index);
+
+        return "alter table {$table} drop index {$index}";
     }
 
     /**
@@ -243,7 +249,9 @@ class MySqlGrammar extends Grammar
     {
         $table = $this->wrapTable($blueprint);
 
-        return "alter table {$table} drop index `{$command->index}`";
+        $index = $this->wrap($command->index);
+
+        return "alter table {$table} drop index {$index}";
     }
 
     /**
@@ -257,7 +265,9 @@ class MySqlGrammar extends Grammar
     {
         $table = $this->wrapTable($blueprint);
 
-        return "alter table {$table} drop foreign key `{$command->index}`";
+        $index = $this->wrap($command->index);
+
+        return "alter table {$table} drop foreign key {$index}";
     }
 
     /**
@@ -570,6 +580,28 @@ class MySqlGrammar extends Grammar
     protected function typeUuid(Fluent $column)
     {
         return 'char(36)';
+    }
+
+    /**
+     * Create the column definition for an IP address type.
+     *
+     * @param  \Illuminate\Support\Fluent $column
+     * @return string
+     */
+    protected function typeIpAddress(Fluent $column)
+    {
+        return 'varchar(45)';
+    }
+
+    /**
+     * Create the column definition for a MAC address type.
+     *
+     * @param  \Illuminate\Support\Fluent $column
+     * @return string
+     */
+    protected function typeMacAddress(Fluent $column)
+    {
+        return 'varchar(17)';
     }
 
     /**

@@ -112,12 +112,42 @@ class ChoiceFormFieldTest extends FormFieldTestCase
         }
     }
 
+    protected function createSelectNode($options, $attributes = array(), $selectedAttrText = 'selected')
+    {
+        $document = new \DOMDocument();
+        $node = $document->createElement('select');
+
+        foreach ($attributes as $name => $value) {
+            $node->setAttribute($name, $value);
+        }
+        $node->setAttribute('name', 'name');
+
+        foreach ($options as $value => $selected) {
+            $option = $document->createElement('option', $value);
+            $option->setAttribute('value', $value);
+            if ($selected) {
+                $option->setAttribute('selected', $selectedAttrText);
+            }
+            $node->appendChild($option);
+        }
+
+        return $node;
+    }
+
     public function testSelectWithEmptyBooleanAttribute()
     {
         $node = $this->createSelectNode(array('foo' => false, 'bar' => true), array(), '');
         $field = new ChoiceFormField($node);
 
         $this->assertEquals('bar', $field->getValue());
+    }
+
+    public function testSelectIsDisabled()
+    {
+        $node = $this->createSelectNode(array('foo' => false, 'bar' => true), array('disabled' => 'disabled'));
+        $field = new ChoiceFormField($node);
+
+        $this->assertTrue($field->isDisabled(), '->isDisabled() returns true for selects with a disabled attribute');
     }
 
     public function testMultipleSelects()
@@ -328,43 +358,6 @@ class ChoiceFormFieldTest extends FormFieldTestCase
         $this->assertEquals('foo', $field->getValue(), '->select() changes the selected option');
     }
 
-    public function testDisableValidation()
-    {
-        $node = $this->createSelectNode(array('foo' => false, 'bar' => false));
-        $field = new ChoiceFormField($node);
-        $field->disableValidation();
-        $field->setValue('foobar');
-        $this->assertEquals('foobar', $field->getValue(), '->disableValidation() allows to set a value which is not in the selected options.');
-
-        $node = $this->createSelectNode(array('foo' => false, 'bar' => false), array('multiple' => 'multiple'));
-        $field = new ChoiceFormField($node);
-        $field->disableValidation();
-        $field->setValue(array('foobar'));
-        $this->assertEquals(array('foobar'), $field->getValue(), '->disableValidation() allows to set a value which is not in the selected options.');
-    }
-
-    protected function createSelectNode($options, $attributes = array(), $selectedAttrText = 'selected')
-    {
-        $document = new \DOMDocument();
-        $node = $document->createElement('select');
-
-        foreach ($attributes as $name => $value) {
-            $node->setAttribute($name, $value);
-        }
-        $node->setAttribute('name', 'name');
-
-        foreach ($options as $value => $selected) {
-            $option = $document->createElement('option', $value);
-            $option->setAttribute('value', $value);
-            if ($selected) {
-                $option->setAttribute('selected', $selectedAttrText);
-            }
-            $node->appendChild($option);
-        }
-
-        return $node;
-    }
-
     protected function createSelectNodeWithEmptyOption($options, $attributes = array())
     {
         $document = new \DOMDocument();
@@ -384,5 +377,20 @@ class ChoiceFormFieldTest extends FormFieldTestCase
         }
 
         return $node;
+    }
+
+    public function testDisableValidation()
+    {
+        $node = $this->createSelectNode(array('foo' => false, 'bar' => false));
+        $field = new ChoiceFormField($node);
+        $field->disableValidation();
+        $field->setValue('foobar');
+        $this->assertEquals('foobar', $field->getValue(), '->disableValidation() allows to set a value which is not in the selected options.');
+
+        $node = $this->createSelectNode(array('foo' => false, 'bar' => false), array('multiple' => 'multiple'));
+        $field = new ChoiceFormField($node);
+        $field->disableValidation();
+        $field->setValue(array('foobar'));
+        $this->assertEquals(array('foobar'), $field->getValue(), '->disableValidation() allows to set a value which is not in the selected options.');
     }
 }

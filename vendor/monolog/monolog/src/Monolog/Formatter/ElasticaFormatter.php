@@ -36,7 +36,9 @@ class ElasticaFormatter extends NormalizerFormatter
      */
     public function __construct($index, $type)
     {
-        parent::__construct(\DateTime::ISO8601);
+        // elasticsearch requires a ISO 8601 format date with optional millisecond precision.
+        parent::__construct('Y-m-d\TH:i:s.uP');
+
         $this->index = $index;
         $this->type = $type;
     }
@@ -49,6 +51,22 @@ class ElasticaFormatter extends NormalizerFormatter
         $record = parent::format($record);
 
         return $this->getDocument($record);
+    }
+
+    /**
+     * Convert a log message into an Elastica Document
+     *
+     * @param  array $record Log message
+     * @return Document
+     */
+    protected function getDocument($record)
+    {
+        $document = new Document();
+        $document->setData($record);
+        $document->setType($this->type);
+        $document->setIndex($this->index);
+
+        return $document;
     }
 
     /**
@@ -67,21 +85,5 @@ class ElasticaFormatter extends NormalizerFormatter
     public function getType()
     {
         return $this->type;
-    }
-
-    /**
-     * Convert a log message into an Elastica Document
-     *
-     * @param  array    $record Log message
-     * @return Document
-     */
-    protected function getDocument($record)
-    {
-        $document = new Document();
-        $document->setData($record);
-        $document->setType($this->type);
-        $document->setIndex($this->index);
-
-        return $document;
     }
 }

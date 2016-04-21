@@ -60,6 +60,19 @@ class DatabaseUserProvider implements UserProvider
     }
 
     /**
+     * Get the generic user.
+     *
+     * @param  mixed $user
+     * @return \Illuminate\Auth\GenericUser|null
+     */
+    protected function getGenericUser($user)
+    {
+        if ($user !== null) {
+            return new GenericUser((array)$user);
+        }
+    }
+
+    /**
      * Retrieve a user by their unique identifier and "remember me" token.
      *
      * @param  mixed  $identifier
@@ -115,19 +128,6 @@ class DatabaseUserProvider implements UserProvider
         $user = $query->first();
 
         return $this->getGenericUser($user);
-    }
-
-    /**
-     * Get the generic user.
-     *
-     * @param  mixed  $user
-     * @return \Illuminate\Auth\GenericUser|null
-     */
-    protected function getGenericUser($user)
-    {
-        if ($user !== null) {
-            return new GenericUser((array) $user);
-        }
     }
 
     /**

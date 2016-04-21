@@ -78,6 +78,20 @@ class BladeCompiler extends Compiler implements CompilerInterface
     protected $footer = [];
 
     /**
+     * Placeholder to temporary mark the position of verbatim blocks.
+     *
+     * @var string
+     */
+    protected $verbatimPlaceholder = '@__verbatim__@';
+
+    /**
+     * Array to temporary store the verbatim blocks found in the template.
+     *
+     * @var array
+     */
+    protected $verbatimBlocks = [];
+
+    /**
      * Counter to keep track of nested forelse statements.
      *
      * @var int
@@ -96,32 +110,11 @@ class BladeCompiler extends Compiler implements CompilerInterface
             $this->setPath($path);
         }
 
-        $contents = $this->compileString($this->files->get($this->getPath()));
-
         if (! is_null($this->cachePath)) {
+            $contents = $this->compileString($this->files->get($this->getPath()));
+
             $this->files->put($this->getCompiledPath($this->getPath()), $contents);
         }
-    }
-
-    /**
-     * Get the path currently being compiled.
-     *
-     * @return string
-     */
-    public function getPath()
-    {
-        return $this->path;
-    }
-
-    /**
-     * Set the path currently being compiled.
-     *
-     * @param  string  $path
-     * @return void
-     */
-    public function setPath($path)
-    {
-        $this->path = $path;
     }
 
     /**
@@ -134,6 +127,10 @@ class BladeCompiler extends Compiler implements CompilerInterface
     {
         $result = '';
 
+        if (strpos($value, '@verbatim') !== false) {
+            $value = $this->storeVerbatimBlocks($value);
+        }
+
         $this->footer = [];
 
         // Here we will loop through all of the tokens returned by the Zend lexer and
@@ -141,6 +138,10 @@ class BladeCompiler extends Compiler implements CompilerInterface
         // template as the correctly rendered PHP that can be rendered natively.
         foreach (token_get_all($value) as $token) {
             $result .= is_array($token) ? $this->parseToken($token) : $token;
+        }
+
+        if (!empty($this->verbatimBlocks)) {
+            $result = $this->restoreVerbatimBlocks($result);
         }
 
         // If there are any footer lines that need to get added to a template we will
@@ -152,6 +153,21 @@ class BladeCompiler extends Compiler implements CompilerInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Store the verbatim blocks and replace them with a temporary placeholder.
+     *
+     * @param  string $value
+     * @return string
+     */
+    protected function storeVerbatimBlocks($value)
+    {
+        return preg_replace_callback('/(?<!@)@verbatim(.*?)@endverbatim/s', function ($matches) {
+            $this->verbatimBlocks[] = $matches[1];
+
+            return $this->verbatimPlaceholder;
+        }, $value);
     }
 
     /**
@@ -171,6 +187,180 @@ class BladeCompiler extends Compiler implements CompilerInterface
         }
 
         return $content;
+    }
+
+    /**
+     * Replace the raw placeholders with the original code stored in the raw blocks.
+     *
+     * @param  string $result
+     * @return string
+     */
+    protected function restoreVerbatimBlocks($result)
+    {
+        $result = preg_replace_callback('/' . preg_quote($this->verbatimPlaceholder) . '/', function () {
+            return array_shift($this->verbatimBlocks);
+        }, $result);
+
+        $this->verbatimBlocks = [];
+
+        return $result;
+    }
+
+    /**
+     * Get the path currently being compiled.
+     *
+     * @return string
+     */
+    public function getPath()
+    {
+        return $this->path;
+    }
+
+    /**
+     * Set the path currently being compiled.
+     *
+     * @param  string $path
+     * @return void
+     */
+    public function setPath($path)
+    {
+        $this->path = $path;
+    }
+
+    /**
+     * Get the extensions used by the compiler.
+     *
+     * @return array
+     */
+    public function getExtensions()
+    {
+        return $this->extensions;
+    }
+
+    /**
+     * Register a custom Blade compiler.
+     *
+     * @param  callable $compiler
+     * @return void
+     */
+    public function extend(callable $compiler)
+    {
+        $this->extensions[] = $compiler;
+    }
+
+    /**
+     * Register a handler for custom directives.
+     *
+     * @param  string $name
+     * @param  callable $handler
+     * @return void
+     */
+    public function directive($name, callable $handler)
+    {
+        $this->customDirectives[$name] = $handler;
+    }
+
+    /**
+     * Get the list of custom directives.
+     *
+     * @return array
+     */
+    public function getCustomDirectives()
+    {
+        return $this->customDirectives;
+    }
+
+    /**
+     * Gets the raw tags used by the compiler.
+     *
+     * @return array
+     */
+    public function getRawTags()
+    {
+        return $this->rawTags;
+    }
+
+    /**
+     * Sets the raw tags used for the compiler.
+     *
+     * @param  string $openTag
+     * @param  string $closeTag
+     * @return void
+     */
+    public function setRawTags($openTag, $closeTag)
+    {
+        $this->rawTags = [preg_quote($openTag), preg_quote($closeTag)];
+    }
+
+    /**
+     * Sets the escaped content tags used for the compiler.
+     *
+     * @param  string $openTag
+     * @param  string $closeTag
+     * @return void
+     */
+    public function setEscapedContentTags($openTag, $closeTag)
+    {
+        $this->setContentTags($openTag, $closeTag, true);
+    }
+
+    /**
+     * Gets the content tags used for the compiler.
+     *
+     * @return string
+     */
+    public function getContentTags()
+    {
+        return $this->getTags();
+    }
+
+    /**
+     * Sets the content tags used for the compiler.
+     *
+     * @param  string $openTag
+     * @param  string $closeTag
+     * @param  bool $escaped
+     * @return void
+     */
+    public function setContentTags($openTag, $closeTag, $escaped = false)
+    {
+        $property = ($escaped === true) ? 'escapedTags' : 'contentTags';
+
+        $this->{$property} = [preg_quote($openTag), preg_quote($closeTag)];
+    }
+
+    /**
+     * Gets the tags used for the compiler.
+     *
+     * @param  bool $escaped
+     * @return array
+     */
+    protected function getTags($escaped = false)
+    {
+        $tags = $escaped ? $this->escapedTags : $this->contentTags;
+
+        return array_map('stripcslashes', $tags);
+    }
+
+    /**
+     * Gets the escaped content tags used for the compiler.
+     *
+     * @return string
+     */
+    public function getEscapedContentTags()
+    {
+        return $this->getTags(true);
+    }
+
+    /**
+     * Set the echo format to be used by the compiler.
+     *
+     * @param  string $format
+     * @return void
+     */
+    public function setEchoFormat($format)
+    {
+        $this->echoFormat = $format;
     }
 
     /**
@@ -196,7 +386,7 @@ class BladeCompiler extends Compiler implements CompilerInterface
      */
     protected function compileComments($value)
     {
-        $pattern = sprintf('/%s--((.|\s)*?)--%s/', $this->contentTags[0], $this->contentTags[1]);
+        $pattern = sprintf('/%s--(.*?)--%s/s', $this->contentTags[0], $this->contentTags[1]);
 
         return preg_replace($pattern, '<?php /*$1*/ ?>', $value);
     }
@@ -266,16 +456,18 @@ class BladeCompiler extends Compiler implements CompilerInterface
     protected function compileStatements($value)
     {
         $callback = function ($match) {
-            if (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
-                $match[0] = $this->$method(Arr::get($match, 3));
+            if (Str::contains($match[1], '@')) {
+                $match[0] = isset($match[3]) ? $match[1] . $match[3] : $match[1];
             } elseif (isset($this->customDirectives[$match[1]])) {
                 $match[0] = call_user_func($this->customDirectives[$match[1]], Arr::get($match, 3));
+            } elseif (method_exists($this, $method = 'compile' . ucfirst($match[1]))) {
+                $match[0] = $this->$method(Arr::get($match, 3));
             }
 
             return isset($match[3]) ? $match[0] : $match[0].$match[2];
         };
 
-        return preg_replace_callback('/\B@(\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x', $callback, $value);
+        return preg_replace_callback('/\B@(@?\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x', $callback, $value);
     }
 
     /**
@@ -295,6 +487,17 @@ class BladeCompiler extends Compiler implements CompilerInterface
         };
 
         return preg_replace_callback($pattern, $callback, $value);
+    }
+
+    /**
+     * Compile the default values for the echo statement.
+     *
+     * @param  string $value
+     * @return string
+     */
+    public function compileEchoDefaults($value)
+    {
+        return preg_replace('/^(?=\$)(.+?)(?:\s+or\s+)(.+?)$/s', 'isset($1) ? $1 : $2', $value);
     }
 
     /**
@@ -335,17 +538,6 @@ class BladeCompiler extends Compiler implements CompilerInterface
         };
 
         return preg_replace_callback($pattern, $callback, $value);
-    }
-
-    /**
-     * Compile the default values for the echo statement.
-     *
-     * @param  string  $value
-     * @return string
-     */
-    public function compileEchoDefaults($value)
-    {
-        return preg_replace('/^(?=\$)(.+?)(?:\s+or\s+)(.+?)$/s', 'isset($1) ? $1 : $2', $value);
     }
 
     /**
@@ -534,7 +726,7 @@ class BladeCompiler extends Compiler implements CompilerInterface
      */
     protected function compileBreak($expression)
     {
-        return '<?php break; ?>';
+        return $expression ? "<?php if{$expression} break; ?>" : '<?php break; ?>';
     }
 
     /**
@@ -545,7 +737,7 @@ class BladeCompiler extends Compiler implements CompilerInterface
      */
     protected function compileContinue($expression)
     {
-        return '<?php continue; ?>';
+        return $expression ? "<?php if{$expression} continue; ?>" : '<?php continue; ?>';
     }
 
     /**
@@ -616,6 +808,17 @@ class BladeCompiler extends Compiler implements CompilerInterface
         $empty = '$__empty_'.$this->forelseCounter--;
 
         return "<?php endforeach; if ({$empty}): ?>";
+    }
+
+    /**
+     * Compile the has section statements into valid PHP.
+     *
+     * @param  string $expression
+     * @return string
+     */
+    protected function compileHasSection($expression)
+    {
+        return "<?php if (! empty(trim(\$__env->yieldContent{$expression}))): ?>";
     }
 
     /**
@@ -707,6 +910,39 @@ class BladeCompiler extends Compiler implements CompilerInterface
     }
 
     /**
+     * Compile the raw PHP statements into valid PHP.
+     *
+     * @param  string  $expression
+     * @return string
+     */
+    protected function compilePhp($expression)
+    {
+        return $expression ? "<?php {$expression}; ?>" : '<?php ';
+    }
+
+    /**
+     * Compile end-php statement into valid PHP.
+     *
+     * @param  string  $expression
+     * @return string
+     */
+    protected function compileEndphp($expression)
+    {
+        return ' ?>';
+    }
+
+    /**
+     * Compile the unset statements into valid PHP.
+     *
+     * @param  string  $expression
+     * @return string
+     */
+    protected function compileUnset($expression)
+    {
+        return "<?php unset{$expression}; ?>";
+    }
+
+    /**
      * Compile the extends statements into valid PHP.
      *
      * @param  string  $expression
@@ -714,9 +950,7 @@ class BladeCompiler extends Compiler implements CompilerInterface
      */
     protected function compileExtends($expression)
     {
-        if (Str::startsWith($expression, '(')) {
-            $expression = substr($expression, 1, -1);
-        }
+        $expression = $this->stripParentheses($expression);
 
         $data = "<?php echo \$__env->make($expression, array_except(get_defined_vars(), array('__data', '__path')))->render(); ?>";
 
@@ -726,186 +960,76 @@ class BladeCompiler extends Compiler implements CompilerInterface
     }
 
     /**
-     * Compile the include statements into valid PHP.
+     * Strip the parentheses from the given expression.
      *
-     * @param  string  $expression
+     * @param  string $expression
      * @return string
      */
-    protected function compileInclude($expression)
+    protected function stripParentheses($expression)
     {
         if (Str::startsWith($expression, '(')) {
             $expression = substr($expression, 1, -1);
         }
 
+        return $expression;
+    }
+
+    /**
+     * Compile the include statements into valid PHP.
+     *
+     * @param  string $expression
+     * @return string
+     */
+    protected function compileInclude($expression)
+    {
+        $expression = $this->stripParentheses($expression);
+
         return "<?php echo \$__env->make($expression, array_except(get_defined_vars(), array('__data', '__path')))->render(); ?>";
+    }
+
+    /**
+     * Compile the include statements into valid PHP.
+     *
+     * @param  string $expression
+     * @return string
+     */
+    protected function compileIncludeIf($expression)
+    {
+        $expression = $this->stripParentheses($expression);
+
+        return "<?php if (\$__env->exists($expression)) echo \$__env->make($expression, array_except(get_defined_vars(), array('__data', '__path')))->render(); ?>";
     }
 
     /**
      * Compile the stack statements into the content.
      *
-     * @param  string  $expression
+     * @param  string $expression
      * @return string
      */
     protected function compileStack($expression)
     {
-        return "<?php echo \$__env->yieldContent{$expression}; ?>";
+        return "<?php echo \$__env->yieldPushContent{$expression}; ?>";
     }
 
     /**
      * Compile the push statements into valid PHP.
      *
-     * @param  string  $expression
+     * @param  string $expression
      * @return string
      */
     protected function compilePush($expression)
     {
-        return "<?php \$__env->startSection{$expression}; ?>";
+        return "<?php \$__env->startPush{$expression}; ?>";
     }
 
     /**
      * Compile the endpush statements into valid PHP.
      *
-     * @param  string  $expression
+     * @param  string $expression
      * @return string
      */
     protected function compileEndpush($expression)
     {
-        return '<?php $__env->appendSection(); ?>';
-    }
-
-    /**
-     * Get the extensions used by the compiler.
-     *
-     * @return array
-     */
-    public function getExtensions()
-    {
-        return $this->extensions;
-    }
-
-    /**
-     * Register a custom Blade compiler.
-     *
-     * @param  callable  $compiler
-     * @return void
-     */
-    public function extend(callable $compiler)
-    {
-        $this->extensions[] = $compiler;
-    }
-
-    /**
-     * Register a handler for custom directives.
-     *
-     * @param  string  $name
-     * @param  callable  $handler
-     * @return void
-     */
-    public function directive($name, callable $handler)
-    {
-        $this->customDirectives[$name] = $handler;
-    }
-
-    /**
-     * Get the list of custom directives.
-     *
-     * @return array
-     */
-    public function getCustomDirectives()
-    {
-        return $this->customDirectives;
-    }
-
-    /**
-     * Gets the raw tags used by the compiler.
-     *
-     * @return array
-     */
-    public function getRawTags()
-    {
-        return $this->rawTags;
-    }
-
-    /**
-     * Sets the raw tags used for the compiler.
-     *
-     * @param  string  $openTag
-     * @param  string  $closeTag
-     * @return void
-     */
-    public function setRawTags($openTag, $closeTag)
-    {
-        $this->rawTags = [preg_quote($openTag), preg_quote($closeTag)];
-    }
-
-    /**
-     * Sets the content tags used for the compiler.
-     *
-     * @param  string  $openTag
-     * @param  string  $closeTag
-     * @param  bool    $escaped
-     * @return void
-     */
-    public function setContentTags($openTag, $closeTag, $escaped = false)
-    {
-        $property = ($escaped === true) ? 'escapedTags' : 'contentTags';
-
-        $this->{$property} = [preg_quote($openTag), preg_quote($closeTag)];
-    }
-
-    /**
-     * Sets the escaped content tags used for the compiler.
-     *
-     * @param  string  $openTag
-     * @param  string  $closeTag
-     * @return void
-     */
-    public function setEscapedContentTags($openTag, $closeTag)
-    {
-        $this->setContentTags($openTag, $closeTag, true);
-    }
-
-    /**
-     * Gets the content tags used for the compiler.
-     *
-     * @return string
-     */
-    public function getContentTags()
-    {
-        return $this->getTags();
-    }
-
-    /**
-     * Gets the escaped content tags used for the compiler.
-     *
-     * @return string
-     */
-    public function getEscapedContentTags()
-    {
-        return $this->getTags(true);
-    }
-
-    /**
-     * Gets the tags used for the compiler.
-     *
-     * @param  bool  $escaped
-     * @return array
-     */
-    protected function getTags($escaped = false)
-    {
-        $tags = $escaped ? $this->escapedTags : $this->contentTags;
-
-        return array_map('stripcslashes', $tags);
-    }
-
-    /**
-     * Set the echo format to be used by the compiler.
-     *
-     * @param  string  $format
-     * @return void
-     */
-    public function setEchoFormat($format)
-    {
-        $this->echoFormat = $format;
+        return '<?php $__env->stopPush(); ?>';
     }
 }

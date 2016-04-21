@@ -62,6 +62,33 @@ class KernelTest extends \PHPUnit_Framework_TestCase
         $kernel->boot();
     }
 
+    /**
+     * Returns a mock for the abstract kernel.
+     *
+     * @param array $methods Additional methods to mock (besides the abstract ones)
+     * @param array $bundles Bundles to register
+     *
+     * @return Kernel
+     */
+    protected function getKernel(array $methods = array(), array $bundles = array())
+    {
+        $methods[] = 'registerBundles';
+
+        $kernel = $this
+            ->getMockBuilder('Symfony\Component\HttpKernel\Kernel')
+            ->setMethods($methods)
+            ->setConstructorArgs(array('test', false))
+            ->getMockForAbstractClass();
+        $kernel->expects($this->any())
+            ->method('registerBundles')
+            ->will($this->returnValue($bundles));
+        $p = new \ReflectionProperty($kernel, 'rootDir');
+        $p->setAccessible(true);
+        $p->setValue($kernel, __DIR__ . '/Fixtures');
+
+        return $kernel;
+    }
+
     public function testBootSetsTheContainerToTheBundles()
     {
         $bundle = $this->getMock('Symfony\Component\HttpKernel\Bundle\Bundle');
@@ -85,6 +112,19 @@ class KernelTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($kernel->isBooted());
     }
 
+    protected function getKernelForTest(array $methods = array())
+    {
+        $kernel = $this->getMockBuilder('Symfony\Component\HttpKernel\Tests\Fixtures\KernelForTest')
+            ->setConstructorArgs(array('test', false))
+            ->setMethods($methods)
+            ->getMock();
+        $p = new \ReflectionProperty($kernel, 'rootDir');
+        $p->setAccessible(true);
+        $p->setValue($kernel, __DIR__ . '/Fixtures');
+
+        return $kernel;
+    }
+
     public function testClassCacheIsLoaded()
     {
         $kernel = $this->getKernel(array('initializeBundles', 'initializeContainer', 'doLoadClassCache'));
@@ -98,7 +138,7 @@ class KernelTest extends \PHPUnit_Framework_TestCase
 
     public function testClassCacheIsNotLoadedByDefault()
     {
-        $kernel = $this->getKernel(array('initializeBundles', 'initializeContainer'));
+        $kernel = $this->getKernel(array('initializeBundles', 'initializeContainer', 'doLoadClassCache'));
         $kernel->expects($this->never())
             ->method('doLoadClassCache');
 
@@ -245,7 +285,7 @@ modified';
 $heredoc = <<<HD
 
 
-Heredoc should not be   modified
+Heredoc should not be   modified {$a[1+$b]}
 
 
 HD;
@@ -281,7 +321,7 @@ modified';
 $heredoc = <<<HD
 
 
-Heredoc should not be   modified
+Heredoc should not be   modified {$a[1+$b]}
 
 
 HD;
@@ -380,6 +420,42 @@ EOF;
         ;
 
         $kernel->locateResource('@Bundle1Bundle/config/routing.xml');
+    }
+
+    /**
+     * Returns a mock for the BundleInterface.
+     *
+     * @return BundleInterface
+     */
+    protected function getBundle($dir = null, $parent = null, $className = null, $bundleName = null)
+    {
+        $bundle = $this
+            ->getMockBuilder('Symfony\Component\HttpKernel\Bundle\BundleInterface')
+            ->setMethods(array('getPath', 'getParent', 'getName'))
+            ->disableOriginalConstructor();
+
+        if ($className) {
+            $bundle->setMockClassName($className);
+        }
+
+        $bundle = $bundle->getMockForAbstractClass();
+
+        $bundle
+            ->expects($this->any())
+            ->method('getName')
+            ->will($this->returnValue(null === $bundleName ? get_class($bundle) : $bundleName));
+
+        $bundle
+            ->expects($this->any())
+            ->method('getPath')
+            ->will($this->returnValue($dir));
+
+        $bundle
+            ->expects($this->any())
+            ->method('getParent')
+            ->will($this->returnValue($parent));
+
+        return $bundle;
     }
 
     public function testLocateResourceReturnsTheFirstThatMatches()
@@ -687,21 +763,17 @@ EOF;
     public function testTerminateDelegatesTerminationOnlyForTerminableInterface()
     {
         // does not implement TerminableInterface
-        $httpKernelMock = $this->getMockBuilder('Symfony\Component\HttpKernel\HttpKernelInterface')
-            ->disableOriginalConstructor()
-            ->getMock();
-
-        $httpKernelMock
-            ->expects($this->never())
-            ->method('terminate');
+        $httpKernel = new TestKernel();
 
         $kernel = $this->getKernel(array('getHttpKernel'));
         $kernel->expects($this->once())
             ->method('getHttpKernel')
-            ->will($this->returnValue($httpKernelMock));
+            ->willReturn($httpKernel);
 
         $kernel->boot();
         $kernel->terminate(Request::create('/'), new Response());
+
+        $this->assertFalse($httpKernel->terminateCalled, 'terminate() is never called if the kernel class does not implement TerminableInterface');
 
         // implements TerminableInterface
         $httpKernelMock = $this->getMockBuilder('Symfony\Component\HttpKernel\HttpKernel')
@@ -721,86 +793,18 @@ EOF;
         $kernel->boot();
         $kernel->terminate(Request::create('/'), new Response());
     }
+}
 
-    /**
-     * Returns a mock for the BundleInterface.
-     *
-     * @return BundleInterface
-     */
-    protected function getBundle($dir = null, $parent = null, $className = null, $bundleName = null)
+class TestKernel implements HttpKernelInterface
+{
+    public $terminateCalled = false;
+
+    public function terminate()
     {
-        $bundle = $this
-            ->getMockBuilder('Symfony\Component\HttpKernel\Bundle\BundleInterface')
-            ->setMethods(array('getPath', 'getParent', 'getName'))
-            ->disableOriginalConstructor()
-        ;
-
-        if ($className) {
-            $bundle->setMockClassName($className);
-        }
-
-        $bundle = $bundle->getMockForAbstractClass();
-
-        $bundle
-            ->expects($this->any())
-            ->method('getName')
-            ->will($this->returnValue(null === $bundleName ? get_class($bundle) : $bundleName))
-        ;
-
-        $bundle
-            ->expects($this->any())
-            ->method('getPath')
-            ->will($this->returnValue($dir))
-        ;
-
-        $bundle
-            ->expects($this->any())
-            ->method('getParent')
-            ->will($this->returnValue($parent))
-        ;
-
-        return $bundle;
+        $this->terminateCalled = true;
     }
 
-    /**
-     * Returns a mock for the abstract kernel.
-     *
-     * @param array $methods Additional methods to mock (besides the abstract ones)
-     * @param array $bundles Bundles to register
-     *
-     * @return Kernel
-     */
-    protected function getKernel(array $methods = array(), array $bundles = array())
+    public function handle(Request $request, $type = self::MASTER_REQUEST, $catch = true)
     {
-        $methods[] = 'registerBundles';
-
-        $kernel = $this
-            ->getMockBuilder('Symfony\Component\HttpKernel\Kernel')
-            ->setMethods($methods)
-            ->setConstructorArgs(array('test', false))
-            ->getMockForAbstractClass()
-        ;
-        $kernel->expects($this->any())
-            ->method('registerBundles')
-            ->will($this->returnValue($bundles))
-        ;
-        $p = new \ReflectionProperty($kernel, 'rootDir');
-        $p->setAccessible(true);
-        $p->setValue($kernel, __DIR__.'/Fixtures');
-
-        return $kernel;
-    }
-
-    protected function getKernelForTest(array $methods = array())
-    {
-        $kernel = $this->getMockBuilder('Symfony\Component\HttpKernel\Tests\Fixtures\KernelForTest')
-            ->setConstructorArgs(array('test', false))
-            ->setMethods($methods)
-            ->getMock();
-        $p = new \ReflectionProperty($kernel, 'rootDir');
-        $p->setAccessible(true);
-        $p->setValue($kernel, __DIR__.'/Fixtures');
-
-        return $kernel;
     }
 }

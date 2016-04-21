@@ -5,6 +5,9 @@ namespace Symfony\Component\Console\Tests\Helper;
 use Symfony\Component\Console\Helper\ProgressIndicator;
 use Symfony\Component\Console\Output\StreamOutput;
 
+/**
+ * @group time-sensitive
+ */
 class ProgressIndicatorTest extends \PHPUnit_Framework_TestCase
 {
     public function testDefaultIndicator()
@@ -49,6 +52,18 @@ class ProgressIndicatorTest extends \PHPUnit_Framework_TestCase
             PHP_EOL,
             stream_get_contents($output->getStream())
         );
+    }
+
+    protected function getOutputStream($decorated = true, $verbosity = StreamOutput::VERBOSITY_NORMAL)
+    {
+        return new StreamOutput(fopen('php://memory', 'r+', false), $verbosity, $decorated);
+    }
+
+    protected function generateOutput($expected)
+    {
+        $count = substr_count($expected, "\n");
+
+        return "\x0D" . ($count ? sprintf("\033[%dA", $count) : '') . $expected;
     }
 
     public function testNonDecoratedOutput()
@@ -163,17 +178,5 @@ class ProgressIndicatorTest extends \PHPUnit_Framework_TestCase
             array('very_verbose'),
             array('debug'),
         );
-    }
-
-    protected function getOutputStream($decorated = true, $verbosity = StreamOutput::VERBOSITY_NORMAL)
-    {
-        return new StreamOutput(fopen('php://memory', 'r+', false), $verbosity, $decorated);
-    }
-
-    protected function generateOutput($expected)
-    {
-        $count = substr_count($expected, "\n");
-
-        return "\x0D".($count ? sprintf("\033[%dA", $count) : '').$expected;
     }
 }

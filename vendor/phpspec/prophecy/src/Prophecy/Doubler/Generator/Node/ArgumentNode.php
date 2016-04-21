@@ -23,6 +23,7 @@ class ArgumentNode
     private $default;
     private $optional    = false;
     private $byReference = false;
+    private $isVariadic = false;
 
     /**
      * @param string $name
@@ -47,6 +48,21 @@ class ArgumentNode
         $this->typeHint = $typeHint;
     }
 
+    public function hasDefault()
+    {
+        return $this->isOptional() && !$this->isVariadic();
+    }
+
+    public function isOptional()
+    {
+        return $this->optional;
+    }
+
+    public function isVariadic()
+    {
+        return $this->isVariadic;
+    }
+
     public function getDefault()
     {
         return $this->default;
@@ -58,11 +74,6 @@ class ArgumentNode
         $this->default  = $default;
     }
 
-    public function isOptional()
-    {
-        return $this->optional;
-    }
-
     public function setAsPassedByReference($byReference = true)
     {
         $this->byReference = $byReference;
@@ -71,5 +82,10 @@ class ArgumentNode
     public function isPassedByReference()
     {
         return $this->byReference;
+    }
+
+    public function setAsVariadic($isVariadic = true)
+    {
+        $this->isVariadic = $isVariadic;
     }
 }

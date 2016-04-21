@@ -34,6 +34,11 @@ class FragmentListenerTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($request->query->has('_path'));
     }
 
+    private function createGetResponseEvent(Request $request, $requestType = HttpKernelInterface::MASTER_REQUEST)
+    {
+        return new GetResponseEvent($this->getMock('Symfony\Component\HttpKernel\HttpKernelInterface'), $request, $requestType);
+    }
+
     public function testOnlyTriggeredIfControllerWasNotDefinedYet()
     {
         $request = Request::create('http://example.com/_fragment?_path=foo%3Dbar%26_controller%3Dfoo');
@@ -89,8 +94,28 @@ class FragmentListenerTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($request->query->has('_path'));
     }
 
-    private function createGetResponseEvent(Request $request, $requestType = HttpKernelInterface::MASTER_REQUEST)
+    public function testRemovesPathWithControllerDefined()
     {
-        return new GetResponseEvent($this->getMock('Symfony\Component\HttpKernel\HttpKernelInterface'), $request, $requestType);
+        $request = Request::create('http://example.com/_fragment?_path=foo%3Dbar%26_controller%3Dfoo');
+
+        $listener = new FragmentListener(new UriSigner('foo'));
+        $event = $this->createGetResponseEvent($request, HttpKernelInterface::SUB_REQUEST);
+
+        $listener->onKernelRequest($event);
+
+        $this->assertFalse($request->query->has('_path'));
+    }
+
+    public function testRemovesPathWithControllerNotDefined()
+    {
+        $signer = new UriSigner('foo');
+        $request = Request::create($signer->sign('http://example.com/_fragment?_path=foo%3Dbar'), 'GET', array(), array(), array(), array('REMOTE_ADDR' => '10.0.0.1'));
+
+        $listener = new FragmentListener($signer);
+        $event = $this->createGetResponseEvent($request);
+
+        $listener->onKernelRequest($event);
+
+        $this->assertFalse($request->query->has('_path'));
     }
 }

@@ -21,9 +21,9 @@ class MailServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton('mailer', function ($app) {
-            $this->registerSwiftMailer();
+        $this->registerSwiftMailer();
 
+        $this->app->singleton('mailer', function ($app) {
             // Once we have create the mailer instance, we will set a container instance
             // on the mailer. This allows us to resolve mailer classes via containers
             // for maximum testability on said classes instead of passing Closures.
@@ -53,22 +53,6 @@ class MailServiceProvider extends ServiceProvider
     }
 
     /**
-     * Set a few dependencies on the mailer instance.
-     *
-     * @param  \Illuminate\Mail\Mailer  $mailer
-     * @param  \Illuminate\Foundation\Application  $app
-     * @return void
-     */
-    protected function setMailerDependencies($mailer, $app)
-    {
-        $mailer->setContainer($app);
-
-        if ($app->bound('queue')) {
-            $mailer->setQueue($app['queue.connection']);
-        }
-    }
-
-    /**
      * Register the Swift Mailer instance.
      *
      * @return void
@@ -95,6 +79,22 @@ class MailServiceProvider extends ServiceProvider
         $this->app['swift.transport'] = $this->app->share(function ($app) {
             return new TransportManager($app);
         });
+    }
+
+    /**
+     * Set a few dependencies on the mailer instance.
+     *
+     * @param  \Illuminate\Mail\Mailer $mailer
+     * @param  \Illuminate\Foundation\Application $app
+     * @return void
+     */
+    protected function setMailerDependencies($mailer, $app)
+    {
+        $mailer->setContainer($app);
+
+        if ($app->bound('queue')) {
+            $mailer->setQueue($app['queue.connection']);
+        }
     }
 
     /**

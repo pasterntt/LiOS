@@ -96,6 +96,27 @@ class PasswordBroker implements PasswordBrokerContract
     }
 
     /**
+     * Get the user for the given credentials.
+     *
+     * @param  array $credentials
+     * @return \Illuminate\Contracts\Auth\CanResetPassword
+     *
+     * @throws \UnexpectedValueException
+     */
+    public function getUser(array $credentials)
+    {
+        $credentials = Arr::except($credentials, ['token']);
+
+        $user = $this->users->retrieveByCredentials($credentials);
+
+        if ($user && !$user instanceof CanResetPasswordContract) {
+            throw new UnexpectedValueException('User must implement CanResetPassword interface.');
+        }
+
+        return $user;
+    }
+
+    /**
      * Send the password reset link via e-mail.
      *
      * @param  \Illuminate\Contracts\Auth\CanResetPassword  $user
@@ -173,17 +194,6 @@ class PasswordBroker implements PasswordBrokerContract
     }
 
     /**
-     * Set a custom password validator.
-     *
-     * @param  \Closure  $callback
-     * @return void
-     */
-    public function validator(Closure $callback)
-    {
-        $this->passwordValidator = $callback;
-    }
-
-    /**
      * Determine if the passwords match for the request.
      *
      * @param  array  $credentials
@@ -221,24 +231,48 @@ class PasswordBroker implements PasswordBrokerContract
     }
 
     /**
-     * Get the user for the given credentials.
+     * Set a custom password validator.
      *
-     * @param  array  $credentials
-     * @return \Illuminate\Contracts\Auth\CanResetPassword
-     *
-     * @throws \UnexpectedValueException
+     * @param  \Closure $callback
+     * @return void
      */
-    public function getUser(array $credentials)
+    public function validator(Closure $callback)
     {
-        $credentials = Arr::except($credentials, ['token']);
+        $this->passwordValidator = $callback;
+    }
 
-        $user = $this->users->retrieveByCredentials($credentials);
+    /**
+     * Create a new password reset token for the given user.
+     *
+     * @param  CanResetPasswordContract $user
+     * @return string
+     */
+    public function createToken(CanResetPasswordContract $user)
+    {
+        return $this->tokens->create($user);
+    }
 
-        if ($user && ! $user instanceof CanResetPasswordContract) {
-            throw new UnexpectedValueException('User must implement CanResetPassword interface.');
-        }
+    /**
+     * Delete the given password reset token.
+     *
+     * @param  string $token
+     * @return void
+     */
+    public function deleteToken($token)
+    {
+        $this->tokens->delete($token);
+    }
 
-        return $user;
+    /**
+     * Validate the given password reset token.
+     *
+     * @param  CanResetPasswordContract $user
+     * @param  string $token
+     * @return bool
+     */
+    public function tokenExists(CanResetPasswordContract $user, $token)
+    {
+        return $this->tokens->exists($user, $token);
     }
 
     /**

@@ -13,34 +13,6 @@ class Filesystem
     use Macroable;
 
     /**
-     * Determine if a file or directory exists.
-     *
-     * @param  string  $path
-     * @return bool
-     */
-    public function exists($path)
-    {
-        return file_exists($path);
-    }
-
-    /**
-     * Get the contents of a file.
-     *
-     * @param  string  $path
-     * @return string
-     *
-     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
-     */
-    public function get($path)
-    {
-        if ($this->isFile($path)) {
-            return file_get_contents($path);
-        }
-
-        throw new FileNotFoundException("File does not exist at path {$path}");
-    }
-
-    /**
      * Get the returned value of a file.
      *
      * @param  string  $path
@@ -58,6 +30,17 @@ class Filesystem
     }
 
     /**
+     * Determine if the given path is a file.
+     *
+     * @param  string $file
+     * @return bool
+     */
+    public function isFile($file)
+    {
+        return is_file($file);
+    }
+
+    /**
      * Require the given file once.
      *
      * @param  string  $file
@@ -66,19 +49,6 @@ class Filesystem
     public function requireOnce($file)
     {
         require_once $file;
-    }
-
-    /**
-     * Write the contents of a file.
-     *
-     * @param  string  $path
-     * @param  string  $contents
-     * @param  bool  $lock
-     * @return int
-     */
-    public function put($path, $contents, $lock = false)
-    {
-        return file_put_contents($path, $contents, $lock ? LOCK_EX : 0);
     }
 
     /**
@@ -98,40 +68,84 @@ class Filesystem
     }
 
     /**
+     * Determine if a file or directory exists.
+     *
+     * @param  string  $path
+     * @return bool
+     */
+    public function exists($path)
+    {
+        return file_exists($path);
+    }
+
+    /**
+     * Write the contents of a file.
+     *
+     * @param  string $path
+     * @param  string $contents
+     * @param  bool $lock
+     * @return int
+     */
+    public function put($path, $contents, $lock = false)
+    {
+        return file_put_contents($path, $contents, $lock ? LOCK_EX : 0);
+    }
+
+    /**
+     * Get the contents of a file.
+     *
+     * @param  string $path
+     * @param  bool $lock
+     * @return string
+     *
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
+     */
+    public function get($path, $lock = false)
+    {
+        if ($this->isFile($path)) {
+            return $lock ? $this->sharedGet($path) : file_get_contents($path);
+        }
+
+        throw new FileNotFoundException("File does not exist at path {$path}");
+    }
+
+    /**
+     * Get contents of a file with shared access.
+     *
+     * @param  string $path
+     * @return string
+     */
+    public function sharedGet($path)
+    {
+        $contents = '';
+
+        $handle = fopen($path, 'r');
+
+        if ($handle) {
+            try {
+                if (flock($handle, LOCK_SH)) {
+                    while (!feof($handle)) {
+                        $contents .= fread($handle, 1048576);
+                    }
+                }
+            } finally {
+                fclose($handle);
+            }
+        }
+
+        return $contents;
+    }
+
+    /**
      * Append to a file.
      *
      * @param  string  $path
-     * @param  string  $data
+     * @param  string $data
      * @return int
      */
     public function append($path, $data)
     {
         return file_put_contents($path, $data, FILE_APPEND);
-    }
-
-    /**
-     * Delete the file at a given path.
-     *
-     * @param  string|array  $paths
-     * @return bool
-     */
-    public function delete($paths)
-    {
-        $paths = is_array($paths) ? $paths : func_get_args();
-
-        $success = true;
-
-        foreach ($paths as $path) {
-            try {
-                if (! @unlink($path)) {
-                    $success = false;
-                }
-            } catch (ErrorException $e) {
-                $success = false;
-            }
-        }
-
-        return $success;
     }
 
     /**
@@ -147,18 +161,6 @@ class Filesystem
     }
 
     /**
-     * Copy a file to a new location.
-     *
-     * @param  string  $path
-     * @param  string  $target
-     * @return bool
-     */
-    public function copy($path, $target)
-    {
-        return copy($path, $target);
-    }
-
-    /**
      * Extract the file name from a file path.
      *
      * @param  string  $path
@@ -167,6 +169,28 @@ class Filesystem
     public function name($path)
     {
         return pathinfo($path, PATHINFO_FILENAME);
+    }
+
+    /**
+     * Extract the trailing name component from a file path.
+     *
+     * @param  string $path
+     * @return string
+     */
+    public function basename($path)
+    {
+        return pathinfo($path, PATHINFO_BASENAME);
+    }
+
+    /**
+     * Extract the parent directory from a file path.
+     *
+     * @param  string $path
+     * @return string
+     */
+    public function dirname($path)
+    {
+        return pathinfo($path, PATHINFO_DIRNAME);
     }
 
     /**
@@ -225,17 +249,6 @@ class Filesystem
     }
 
     /**
-     * Determine if the given path is a directory.
-     *
-     * @param  string  $directory
-     * @return bool
-     */
-    public function isDirectory($directory)
-    {
-        return is_dir($directory);
-    }
-
-    /**
      * Determine if the given path is writable.
      *
      * @param  string  $path
@@ -244,17 +257,6 @@ class Filesystem
     public function isWritable($path)
     {
         return is_writable($path);
-    }
-
-    /**
-     * Determine if the given path is a file.
-     *
-     * @param  string  $file
-     * @return bool
-     */
-    public function isFile($file)
-    {
-        return is_file($file);
     }
 
     /**
@@ -320,24 +322,6 @@ class Filesystem
     }
 
     /**
-     * Create a directory.
-     *
-     * @param  string  $path
-     * @param  int     $mode
-     * @param  bool    $recursive
-     * @param  bool    $force
-     * @return bool
-     */
-    public function makeDirectory($path, $mode = 0755, $recursive = false, $force = false)
-    {
-        if ($force) {
-            return @mkdir($path, $mode, $recursive);
-        }
-
-        return mkdir($path, $mode, $recursive);
-    }
-
-    /**
      * Copy a directory from one location to another.
      *
      * @param  string  $directory
@@ -390,6 +374,58 @@ class Filesystem
     }
 
     /**
+     * Determine if the given path is a directory.
+     *
+     * @param  string $directory
+     * @return bool
+     */
+    public function isDirectory($directory)
+    {
+        return is_dir($directory);
+    }
+
+    /**
+     * Create a directory.
+     *
+     * @param  string $path
+     * @param  int $mode
+     * @param  bool $recursive
+     * @param  bool $force
+     * @return bool
+     */
+    public function makeDirectory($path, $mode = 0755, $recursive = false, $force = false)
+    {
+        if ($force) {
+            return @mkdir($path, $mode, $recursive);
+        }
+
+        return mkdir($path, $mode, $recursive);
+    }
+
+    /**
+     * Copy a file to a new location.
+     *
+     * @param  string $path
+     * @param  string $target
+     * @return bool
+     */
+    public function copy($path, $target)
+    {
+        return copy($path, $target);
+    }
+
+    /**
+     * Empty the specified directory of all files and folders.
+     *
+     * @param  string $directory
+     * @return bool
+     */
+    public function cleanDirectory($directory)
+    {
+        return $this->deleteDirectory($directory, true);
+    }
+
+    /**
      * Recursively delete a directory.
      *
      * The directory itself may be optionally preserved.
@@ -430,13 +466,27 @@ class Filesystem
     }
 
     /**
-     * Empty the specified directory of all files and folders.
+     * Delete the file at a given path.
      *
-     * @param  string  $directory
+     * @param  string|array $paths
      * @return bool
      */
-    public function cleanDirectory($directory)
+    public function delete($paths)
     {
-        return $this->deleteDirectory($directory, true);
+        $paths = is_array($paths) ? $paths : func_get_args();
+
+        $success = true;
+
+        foreach ($paths as $path) {
+            try {
+                if (!@unlink($path)) {
+                    $success = false;
+                }
+            } catch (ErrorException $e) {
+                $success = false;
+            }
+        }
+
+        return $success;
     }
 }

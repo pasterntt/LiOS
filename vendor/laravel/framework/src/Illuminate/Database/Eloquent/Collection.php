@@ -48,19 +48,6 @@ class Collection extends BaseCollection
     }
 
     /**
-     * Add an item to the collection.
-     *
-     * @param  mixed  $item
-     * @return $this
-     */
-    public function add($item)
-    {
-        $this->items[] = $item;
-
-        return $this;
-    }
-
-    /**
      * Determine if a key exists in the collection.
      *
      * @param  mixed  $key
@@ -114,6 +101,25 @@ class Collection extends BaseCollection
     }
 
     /**
+     * Get a dictionary keyed by primary keys.
+     *
+     * @param  \ArrayAccess|array|null $items
+     * @return array
+     */
+    public function getDictionary($items = null)
+    {
+        $items = is_null($items) ? $this->items : $items;
+
+        $dictionary = [];
+
+        foreach ($items as $value) {
+            $dictionary[$value->getKey()] = $value;
+        }
+
+        return $dictionary;
+    }
+
+    /**
      * Diff the collection with the given items.
      *
      * @param  \ArrayAccess|array  $items
@@ -132,6 +138,19 @@ class Collection extends BaseCollection
         }
 
         return $diff;
+    }
+
+    /**
+     * Add an item to the collection.
+     *
+     * @param  mixed $item
+     * @return $this
+     */
+    public function add($item)
+    {
+        $this->items[] = $item;
+
+        return $this;
     }
 
     /**
@@ -197,18 +216,16 @@ class Collection extends BaseCollection
     }
 
     /**
-     * Make the given, typically hidden, attributes visible across the entire collection.
+     * Make the given, typically visible, attributes hidden across the entire collection.
      *
      * @param  array|string  $attributes
      * @return $this
      */
-    public function makeVisible($attributes)
+    public function makeHidden($attributes)
     {
-        $this->each(function ($model) use ($attributes) {
-            $model->makeVisible($attributes);
+        return $this->each(function ($model) use ($attributes) {
+            $model->addHidden($attributes);
         });
-
-        return $this;
     }
 
     /**
@@ -225,22 +242,16 @@ class Collection extends BaseCollection
     }
 
     /**
-     * Get a dictionary keyed by primary keys.
+     * Make the given, typically hidden, attributes visible across the entire collection.
      *
-     * @param  \ArrayAccess|array|null  $items
-     * @return array
+     * @param  array|string $attributes
+     * @return $this
      */
-    public function getDictionary($items = null)
+    public function makeVisible($attributes)
     {
-        $items = is_null($items) ? $this->items : $items;
-
-        $dictionary = [];
-
-        foreach ($items as $value) {
-            $dictionary[$value->getKey()] = $value;
-        }
-
-        return $dictionary;
+        return $this->each(function ($model) use ($attributes) {
+            $model->makeVisible($attributes);
+        });
     }
 
     /**
@@ -257,6 +268,16 @@ class Collection extends BaseCollection
     public function pluck($value, $key = null)
     {
         return $this->toBase()->pluck($value, $key);
+    }
+
+    /**
+     * Get a base Support collection instance from this collection.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function toBase()
+    {
+        return new BaseCollection($this->items);
     }
 
     /**
@@ -309,15 +330,5 @@ class Collection extends BaseCollection
     public function flip()
     {
         return $this->toBase()->flip();
-    }
-
-    /**
-     * Get a base Support collection instance from this collection.
-     *
-     * @return \Illuminate\Support\Collection
-     */
-    public function toBase()
-    {
-        return new BaseCollection($this->items);
     }
 }

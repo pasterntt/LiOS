@@ -28,6 +28,7 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(function_exists('pcntl_signal'), $config->hasPcntl());
         $this->assertEquals(function_exists('pcntl_signal'), $config->usePcntl());
         $this->assertFalse($config->requireSemicolons());
+        $this->assertSame(Configuration::COLOR_MODE_AUTO, $config->colorMode());
     }
 
     public function testGettersAndSetters()
@@ -100,6 +101,7 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
             'loop'              => $loop,
             'requireSemicolons' => true,
             'errorLoggingLevel' => E_ERROR | E_WARNING,
+            'colorMode' => Configuration::COLOR_MODE_FORCED,
         ));
 
         $this->assertFalse($config->useReadline());
@@ -109,6 +111,7 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($loop, $config->getLoop());
         $this->assertTrue($config->requireSemicolons());
         $this->assertEquals(E_ERROR | E_WARNING, $config->errorLoggingLevel());
+        $this->assertSame(Configuration::COLOR_MODE_FORCED, $config->colorMode());
     }
 
     public function testLoadConfigFile()
@@ -124,6 +127,11 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(function_exists('readline'), $config->useReadline());
         $this->assertFalse($config->usePcntl());
         $this->assertEquals(E_ALL & ~E_NOTICE, $config->errorLoggingLevel());
+    }
+
+    private function joinPath()
+    {
+        return implode(DIRECTORY_SEPARATOR, func_get_args());
     }
 
     public function testLoadLocalConfigFile()
@@ -154,11 +162,6 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
         $config = new Configuration(array('baseDir' => 'fake'));
     }
 
-    private function joinPath()
-    {
-        return implode(DIRECTORY_SEPARATOR, func_get_args());
-    }
-
     public function testConfigIncludes()
     {
         $config = new Configuration(array(
@@ -169,5 +172,70 @@ class ConfigurationTest extends \PHPUnit_Framework_TestCase
         $includes = $config->getDefaultIncludes();
         $this->assertCount(1, $includes);
         $this->assertEquals('/file.php', $includes[0]);
+    }
+
+    public function testGetOutput()
+    {
+        $config = new Configuration();
+        $output = $config->getOutput();
+
+        $this->assertInstanceOf('\Psy\Output\ShellOutput', $output);
+    }
+
+    public function getOutputDecoratedProvider()
+    {
+        return array(
+            'auto' => array(
+                null,
+                Configuration::COLOR_MODE_AUTO,
+            ),
+            'forced' => array(
+                true,
+                Configuration::COLOR_MODE_FORCED,
+            ),
+            'disabled' => array(
+                false,
+                Configuration::COLOR_MODE_DISABLED,
+            ),
+        );
+    }
+
+    /** @dataProvider getOutputDecoratedProvider */
+    public function testGetOutputDecorated($expectation, $colorMode)
+    {
+        $config = new Configuration();
+        $config->setColorMode($colorMode);
+
+        $this->assertSame($expectation, $config->getOutputDecorated());
+    }
+
+    public function setColorModeValidProvider()
+    {
+        return array(
+            'auto' => array(Configuration::COLOR_MODE_AUTO),
+            'forced' => array(Configuration::COLOR_MODE_FORCED),
+            'disabled' => array(Configuration::COLOR_MODE_DISABLED),
+        );
+    }
+
+    /** @dataProvider setColorModeValidProvider */
+    public function testSetColorModeValid($colorMode)
+    {
+        $config = new Configuration();
+        $config->setColorMode($colorMode);
+
+        $this->assertEquals($colorMode, $config->colorMode());
+    }
+
+    public function testSetColorModeInvalid()
+    {
+        $config = new Configuration();
+        $colorMode = 'some invalid mode';
+
+        $this->setExpectedException(
+            '\InvalidArgumentException',
+            'invalid color mode: some invalid mode'
+        );
+        $config->setColorMode($colorMode);
     }
 }

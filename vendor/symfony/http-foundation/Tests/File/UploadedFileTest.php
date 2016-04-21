@@ -15,13 +15,6 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class UploadedFileTest extends \PHPUnit_Framework_TestCase
 {
-    protected function setUp()
-    {
-        if (!ini_get('file_uploads')) {
-            $this->markTestSkipped('file_uploads is disabled in php.ini');
-        }
-    }
-
     public function testConstructWhenFileNotExists()
     {
         $this->setExpectedException('Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException');
@@ -164,8 +157,8 @@ class UploadedFileTest extends \PHPUnit_Framework_TestCase
 
         $movedFile = $file->move(__DIR__.'/Fixtures/directory');
 
-        $this->assertTrue(file_exists($targetPath));
-        $this->assertFalse(file_exists($path));
+        $this->assertFileExists($targetPath);
+        $this->assertFileNotExists($path);
         $this->assertEquals(realpath($targetPath), $movedFile->getRealPath());
 
         @unlink($targetPath);
@@ -268,5 +261,12 @@ class UploadedFileTest extends \PHPUnit_Framework_TestCase
         );
 
         $this->assertFalse($file->isValid());
+    }
+
+    protected function setUp()
+    {
+        if (!ini_get('file_uploads')) {
+            $this->markTestSkipped('file_uploads is disabled in php.ini');
+        }
     }
 }

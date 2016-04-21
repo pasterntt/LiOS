@@ -7,9 +7,11 @@ use PhpParser\Node\Scalar;
 
 class String_ extends Scalar
 {
-    /** @var string String value */
-    public $value;
-
+    /* For use in "kind" attribute */
+    const KIND_SINGLE_QUOTED = 1;
+    const KIND_DOUBLE_QUOTED = 2;
+    const KIND_HEREDOC = 3;
+    const KIND_NOWDOC = 4;
     protected static $replacements = array(
         '\\' => '\\',
         '$'  =>  '$',
@@ -20,6 +22,8 @@ class String_ extends Scalar
         'v'  => "\v",
         'e'  => "\x1B",
     );
+    /** @var string String value */
+    public $value;
 
     /**
      * Constructs a string scalar node.
@@ -30,10 +34,6 @@ class String_ extends Scalar
     public function __construct($value, array $attributes = array()) {
         parent::__construct($attributes);
         $this->value = $value;
-    }
-
-    public function getSubNodeNames() {
-        return array('value');
     }
 
     /**
@@ -48,7 +48,7 @@ class String_ extends Scalar
      */
     public static function parse($str, $parseUnicodeEscape = true) {
         $bLength = 0;
-        if ('b' === $str[0]) {
+        if ('b' === $str[0] || 'B' === $str[0]) {
             $bLength = 1;
         }
 
@@ -143,5 +143,10 @@ class String_ extends Scalar
         }
 
         return self::parseEscapeSequences($str, null, $parseUnicodeEscape);
+    }
+
+    public function getSubNodeNames()
+    {
+        return array('value');
     }
 }

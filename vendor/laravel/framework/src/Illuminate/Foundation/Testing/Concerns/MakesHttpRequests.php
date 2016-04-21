@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
 use PHPUnit_Framework_Assert as PHPUnit;
+use Symfony\Component\HttpFoundation\File\UploadedFile as SymfonyUploadedFile;
 
 trait MakesHttpRequests
 {
@@ -56,6 +57,8 @@ trait MakesHttpRequests
      */
     public function json($method, $uri, array $data = [], array $headers = [])
     {
+        $files = $this->extractFilesFromDataArray($data);
+
         $content = json_encode($data);
 
         $headers = array_merge([
@@ -65,10 +68,106 @@ trait MakesHttpRequests
         ], $headers);
 
         $this->call(
-            $method, $uri, [], [], [], $this->transformHeadersToServerVars($headers), $content
+            $method, $uri, [], [], $files, $this->transformHeadersToServerVars($headers), $content
         );
 
         return $this;
+    }
+
+    /**
+     * Extract the file uploads from the given data array.
+     *
+     * @param  array $data
+     * @return array
+     */
+    protected function extractFilesFromDataArray(&$data)
+    {
+        $files = [];
+
+        foreach ($data as $key => $value) {
+            if ($value instanceof SymfonyUploadedFile) {
+                $files[$key] = $value;
+
+                unset($data[$key]);
+            }
+        }
+
+        return $files;
+    }
+
+    /**
+     * Call the given URI and return the Response.
+     *
+     * @param  string $method
+     * @param  string $uri
+     * @param  array $parameters
+     * @param  array $cookies
+     * @param  array $files
+     * @param  array $server
+     * @param  string $content
+     * @return \Illuminate\Http\Response
+     */
+    public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
+    {
+        $kernel = $this->app->make('Illuminate\Contracts\Http\Kernel');
+
+        $this->currentUri = $this->prepareUrlForRequest($uri);
+
+        $this->resetPageContext();
+
+        $request = Request::create(
+            $this->currentUri, $method, $parameters,
+            $cookies, $files, array_replace($this->serverVariables, $server), $content
+        );
+
+        $response = $kernel->handle($request);
+
+        $kernel->terminate($request, $response);
+
+        return $this->response = $response;
+    }
+
+    /**
+     * Turn the given URI into a fully qualified URL.
+     *
+     * @param  string $uri
+     * @return string
+     */
+    protected function prepareUrlForRequest($uri)
+    {
+        if (Str::startsWith($uri, '/')) {
+            $uri = substr($uri, 1);
+        }
+
+        if (!Str::startsWith($uri, 'http')) {
+            $uri = $this->baseUrl . '/' . $uri;
+        }
+
+        return trim($uri, '/');
+    }
+
+    /**
+     * Transform headers array to array of $_SERVER vars with HTTP_* format.
+     *
+     * @param  array $headers
+     * @return array
+     */
+    protected function transformHeadersToServerVars(array $headers)
+    {
+        $server = [];
+        $prefix = 'HTTP_';
+
+        foreach ($headers as $name => $value) {
+            $name = strtr(strtoupper($name), '-', '_');
+
+            if (!Str::startsWith($name, $prefix) && $name != 'CONTENT_TYPE') {
+                $name = $prefix . $name;
+            }
+
+            $server[$name] = $value;
+        }
+
+        return $server;
     }
 
     /**
@@ -173,28 +272,6 @@ trait MakesHttpRequests
     }
 
     /**
-     * Assert that the response contains JSON.
-     *
-     * @param  array|null  $data
-     * @return $this
-     */
-    protected function shouldReturnJson(array $data = null)
-    {
-        return $this->receiveJson($data);
-    }
-
-    /**
-     * Assert that the response contains JSON.
-     *
-     * @param  array|null  $data
-     * @return $this|null
-     */
-    protected function receiveJson($data = null)
-    {
-        return $this->seeJson($data);
-    }
-
-    /**
      * Assert that the response contains an exact JSON array.
      *
      * @param  array  $data
@@ -209,26 +286,6 @@ trait MakesHttpRequests
         $this->assertEquals(json_encode(Arr::sortRecursive($data)), $actual);
 
         return $this;
-    }
-
-    /**
-     * Assert that the response contains JSON.
-     *
-     * @param  array|null  $data
-     * @param  bool  $negate
-     * @return $this
-     */
-    public function seeJson(array $data = null, $negate = false)
-    {
-        if (is_null($data)) {
-            $this->assertJson(
-                $this->response->getContent(), "JSON was not returned from [{$this->currentUri}]."
-            );
-
-            return $this;
-        }
-
-        return $this->seeJsonContains($data, $negate);
     }
 
     /**
@@ -275,213 +332,6 @@ trait MakesHttpRequests
         }
 
         return $this;
-    }
-
-    /**
-     * Assert that the response contains the given JSON.
-     *
-     * @param  array  $data
-     * @param  bool  $negate
-     * @return $this
-     */
-    protected function seeJsonContains(array $data, $negate = false)
-    {
-        $method = $negate ? 'assertFalse' : 'assertTrue';
-
-        $actual = json_encode(Arr::sortRecursive(
-            (array) $this->decodeResponseJson()
-        ));
-
-        foreach (Arr::sortRecursive($data) as $key => $value) {
-            $expected = $this->formatToExpectedJson($key, $value);
-
-            $this->{$method}(
-                Str::contains($actual, $expected),
-                ($negate ? 'Found unexpected' : 'Unable to find')." JSON fragment [{$expected}] within [{$actual}]."
-            );
-        }
-
-        return $this;
-    }
-
-    /**
-     * Assert that the response is a superset of the given JSON.
-     *
-     * @param  array  $data
-     * @return $this
-     */
-    protected function seeJsonSubset(array $data)
-    {
-        $this->assertArraySubset($data, $this->decodeResponseJson());
-
-        return $this;
-    }
-
-    /**
-     * Validate and return the decoded response JSON.
-     *
-     * @return array
-     */
-    protected function decodeResponseJson()
-    {
-        $decodedResponse = json_decode($this->response->getContent(), true);
-
-        if (is_null($decodedResponse) || $decodedResponse === false) {
-            $this->fail('Invalid JSON was returned from the route. Perhaps an exception was thrown?');
-        }
-
-        return $decodedResponse;
-    }
-
-    /**
-     * Format the given key and value into a JSON string for expectation checks.
-     *
-     * @param  string  $key
-     * @param  mixed  $value
-     * @return string
-     */
-    protected function formatToExpectedJson($key, $value)
-    {
-        $expected = json_encode([$key => $value]);
-
-        if (Str::startsWith($expected, '{')) {
-            $expected = substr($expected, 1);
-        }
-
-        if (Str::endsWith($expected, '}')) {
-            $expected = substr($expected, 0, -1);
-        }
-
-        return $expected;
-    }
-
-    /**
-     * Asserts that the status code of the response matches the given code.
-     *
-     * @param  int  $status
-     * @return $this
-     */
-    protected function seeStatusCode($status)
-    {
-        $this->assertEquals($status, $this->response->getStatusCode());
-
-        return $this;
-    }
-
-    /**
-     * Asserts that the response contains the given header and equals the optional value.
-     *
-     * @param  string  $headerName
-     * @param  mixed  $value
-     * @return $this
-     */
-    protected function seeHeader($headerName, $value = null)
-    {
-        $headers = $this->response->headers;
-
-        $this->assertTrue($headers->has($headerName), "Header [{$headerName}] not present on response.");
-
-        if (! is_null($value)) {
-            $this->assertEquals(
-                $headers->get($headerName), $value,
-                "Header [{$headerName}] was found, but value [{$headers->get($headerName)}] does not match [{$value}]."
-            );
-        }
-
-        return $this;
-    }
-
-    /**
-     * Asserts that the response contains the given cookie and equals the optional value.
-     *
-     * @param  string  $cookieName
-     * @param  mixed  $value
-     * @return $this
-     */
-    protected function seePlainCookie($cookieName, $value = null)
-    {
-        return $this->seeCookie($cookieName, $value, false);
-    }
-
-    /**
-     * Asserts that the response contains the given cookie and equals the optional value.
-     *
-     * @param  string  $cookieName
-     * @param  mixed  $value
-     * @param  bool  $encrypted
-     * @return $this
-     */
-    protected function seeCookie($cookieName, $value = null, $encrypted = true)
-    {
-        $headers = $this->response->headers;
-
-        $exist = false;
-
-        foreach ($headers->getCookies() as $cookie) {
-            if ($cookie->getName() === $cookieName) {
-                $exist = true;
-                break;
-            }
-        }
-
-        $this->assertTrue($exist, "Cookie [{$cookieName}] not present on response.");
-
-        if (! $exist || is_null($value)) {
-            return $this;
-        }
-
-        $cookieValue = $cookie->getValue();
-
-        $actual = $encrypted
-            ? $this->app['encrypter']->decrypt($cookieValue) : $cookieValue;
-
-        return $this->assertEquals(
-            $actual, $value,
-            "Cookie [{$cookieName}] was found, but value [{$actual}] does not match [{$value}]."
-        );
-    }
-
-    /**
-     * Define a set of server variables to be sent with the requests.
-     *
-     * @param  array  $server
-     * @return $this
-     */
-    protected function withServerVariables(array $server)
-    {
-        $this->serverVariables = $server;
-
-        return $this;
-    }
-
-    /**
-     * Call the given URI and return the Response.
-     *
-     * @param  string  $method
-     * @param  string  $uri
-     * @param  array   $parameters
-     * @param  array   $cookies
-     * @param  array   $files
-     * @param  array   $server
-     * @param  string  $content
-     * @return \Illuminate\Http\Response
-     */
-    public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
-    {
-        $kernel = $this->app->make('Illuminate\Contracts\Http\Kernel');
-
-        $this->currentUri = $this->prepareUrlForRequest($uri);
-
-        $request = Request::create(
-            $this->currentUri, $method, $parameters,
-            $cookies, $files, array_replace($this->serverVariables, $server), $content
-        );
-
-        $response = $kernel->handle($request);
-
-        $kernel->terminate($request, $response);
-
-        return $this->response = $response;
     }
 
     /**
@@ -541,49 +391,6 @@ trait MakesHttpRequests
         $uri = $this->app['url']->route($name, $routeParameters);
 
         return $this->response = $this->call($method, $uri, $parameters, $cookies, $files, $server, $content);
-    }
-
-    /**
-     * Turn the given URI into a fully qualified URL.
-     *
-     * @param  string  $uri
-     * @return string
-     */
-    protected function prepareUrlForRequest($uri)
-    {
-        if (Str::startsWith($uri, '/')) {
-            $uri = substr($uri, 1);
-        }
-
-        if (! Str::startsWith($uri, 'http')) {
-            $uri = $this->baseUrl.'/'.$uri;
-        }
-
-        return trim($uri, '/');
-    }
-
-    /**
-     * Transform headers array to array of $_SERVER vars with HTTP_* format.
-     *
-     * @param  array  $headers
-     * @return array
-     */
-    protected function transformHeadersToServerVars(array $headers)
-    {
-        $server = [];
-        $prefix = 'HTTP_';
-
-        foreach ($headers as $name => $value) {
-            $name = strtr(strtoupper($name), '-', '_');
-
-            if (! starts_with($name, $prefix) && $name != 'CONTENT_TYPE') {
-                $name = $prefix.$name;
-            }
-
-            $server[$name] = $value;
-        }
-
-        return $server;
     }
 
     /**
@@ -668,6 +475,19 @@ trait MakesHttpRequests
     }
 
     /**
+     * Assert whether the client was redirected to a given route.
+     *
+     * @param  string $name
+     * @param  array $parameters
+     * @param  array $with
+     * @return void
+     */
+    public function assertRedirectedToRoute($name, $parameters = [], $with = [])
+    {
+        $this->assertRedirectedTo($this->app['url']->route($name, $parameters), $with);
+    }
+
+    /**
      * Assert whether the client was redirected to a given URI.
      *
      * @param  string  $uri
@@ -681,19 +501,6 @@ trait MakesHttpRequests
         PHPUnit::assertEquals($this->app['url']->to($uri), $this->response->headers->get('Location'));
 
         $this->assertSessionHasAll($with);
-    }
-
-    /**
-     * Assert whether the client was redirected to a given route.
-     *
-     * @param  string  $name
-     * @param  array   $parameters
-     * @param  array   $with
-     * @return void
-     */
-    public function assertRedirectedToRoute($name, $parameters = [], $with = [])
-    {
-        $this->assertRedirectedTo($this->app['url']->route($name, $parameters), $with);
     }
 
     /**
@@ -725,5 +532,224 @@ trait MakesHttpRequests
         }
 
         dd($content);
+    }
+
+    /**
+     * Assert that the response contains JSON.
+     *
+     * @param  array|null $data
+     * @return $this
+     */
+    protected function shouldReturnJson(array $data = null)
+    {
+        return $this->receiveJson($data);
+    }
+
+    /**
+     * Assert that the response contains JSON.
+     *
+     * @param  array|null $data
+     * @return $this|null
+     */
+    protected function receiveJson($data = null)
+    {
+        return $this->seeJson($data);
+    }
+
+    /**
+     * Assert that the response contains JSON.
+     *
+     * @param  array|null $data
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeJson(array $data = null, $negate = false)
+    {
+        if (is_null($data)) {
+            $this->assertJson(
+                $this->response->getContent(), "JSON was not returned from [{$this->currentUri}]."
+            );
+
+            return $this;
+        }
+
+        return $this->seeJsonContains($data, $negate);
+    }
+
+    /**
+     * Assert that the response contains the given JSON.
+     *
+     * @param  array $data
+     * @param  bool $negate
+     * @return $this
+     */
+    protected function seeJsonContains(array $data, $negate = false)
+    {
+        $method = $negate ? 'assertFalse' : 'assertTrue';
+
+        $actual = json_encode(Arr::sortRecursive(
+            (array)$this->decodeResponseJson()
+        ));
+
+        foreach (Arr::sortRecursive($data) as $key => $value) {
+            $expected = $this->formatToExpectedJson($key, $value);
+
+            $this->{$method}(
+                Str::contains($actual, $expected),
+                ($negate ? 'Found unexpected' : 'Unable to find') . " JSON fragment [{$expected}] within [{$actual}]."
+            );
+        }
+
+        return $this;
+    }
+
+    /**
+     * Validate and return the decoded response JSON.
+     *
+     * @return array
+     */
+    protected function decodeResponseJson()
+    {
+        $decodedResponse = json_decode($this->response->getContent(), true);
+
+        if (is_null($decodedResponse) || $decodedResponse === false) {
+            $this->fail('Invalid JSON was returned from the route. Perhaps an exception was thrown?');
+        }
+
+        return $decodedResponse;
+    }
+
+    /**
+     * Format the given key and value into a JSON string for expectation checks.
+     *
+     * @param  string $key
+     * @param  mixed $value
+     * @return string
+     */
+    protected function formatToExpectedJson($key, $value)
+    {
+        $expected = json_encode([$key => $value]);
+
+        if (Str::startsWith($expected, '{')) {
+            $expected = substr($expected, 1);
+        }
+
+        if (Str::endsWith($expected, '}')) {
+            $expected = substr($expected, 0, -1);
+        }
+
+        return $expected;
+    }
+
+    /**
+     * Assert that the response is a superset of the given JSON.
+     *
+     * @param  array $data
+     * @return $this
+     */
+    protected function seeJsonSubset(array $data)
+    {
+        $this->assertArraySubset($data, $this->decodeResponseJson());
+
+        return $this;
+    }
+
+    /**
+     * Asserts that the status code of the response matches the given code.
+     *
+     * @param  int $status
+     * @return $this
+     */
+    protected function seeStatusCode($status)
+    {
+        $this->assertEquals($status, $this->response->getStatusCode());
+
+        return $this;
+    }
+
+    /**
+     * Asserts that the response contains the given header and equals the optional value.
+     *
+     * @param  string $headerName
+     * @param  mixed $value
+     * @return $this
+     */
+    protected function seeHeader($headerName, $value = null)
+    {
+        $headers = $this->response->headers;
+
+        $this->assertTrue($headers->has($headerName), "Header [{$headerName}] not present on response.");
+
+        if (!is_null($value)) {
+            $this->assertEquals(
+                $headers->get($headerName), $value,
+                "Header [{$headerName}] was found, but value [{$headers->get($headerName)}] does not match [{$value}]."
+            );
+        }
+
+        return $this;
+    }
+
+    /**
+     * Asserts that the response contains the given cookie and equals the optional value.
+     *
+     * @param  string $cookieName
+     * @param  mixed $value
+     * @return $this
+     */
+    protected function seePlainCookie($cookieName, $value = null)
+    {
+        return $this->seeCookie($cookieName, $value, false);
+    }
+
+    /**
+     * Asserts that the response contains the given cookie and equals the optional value.
+     *
+     * @param  string $cookieName
+     * @param  mixed $value
+     * @param  bool $encrypted
+     * @return $this
+     */
+    protected function seeCookie($cookieName, $value = null, $encrypted = true)
+    {
+        $headers = $this->response->headers;
+
+        $exist = false;
+
+        foreach ($headers->getCookies() as $cookie) {
+            if ($cookie->getName() === $cookieName) {
+                $exist = true;
+                break;
+            }
+        }
+
+        $this->assertTrue($exist, "Cookie [{$cookieName}] not present on response.");
+
+        if (!$exist || is_null($value)) {
+            return $this;
+        }
+
+        $cookieValue = $cookie->getValue();
+
+        $actual = $encrypted
+            ? $this->app['encrypter']->decrypt($cookieValue) : $cookieValue;
+
+        return $this->assertEquals(
+            $actual, $value,
+            "Cookie [{$cookieName}] was found, but value [{$actual}] does not match [{$value}]."
+        );
+    }
+
+    /**
+     * Define a set of server variables to be sent with the requests.
+     *
+     * @param  array $server
+     * @return $this
+     */
+    protected function withServerVariables(array $server)
+    {
+        $this->serverVariables = $server;
+
+        return $this;
     }
 }

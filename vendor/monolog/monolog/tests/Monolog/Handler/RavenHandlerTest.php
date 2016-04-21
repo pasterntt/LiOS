@@ -35,13 +35,6 @@ class RavenHandlerTest extends TestCase
         $this->assertInstanceOf('Monolog\Handler\RavenHandler', $handler);
     }
 
-    protected function getHandler($ravenClient)
-    {
-        $handler = new RavenHandler($ravenClient);
-
-        return $handler;
-    }
-
     protected function getRavenClient()
     {
         $dsn = 'http://43f6017361224d098402974103bfc53d:a6a0538fc2934ba2bed32e08741b2cd3@marca.python.live.cheggnet.com:9000/1';
@@ -59,6 +52,13 @@ class RavenHandlerTest extends TestCase
 
         $this->assertEquals($ravenClient::DEBUG, $ravenClient->lastData['level']);
         $this->assertContains($record['message'], $ravenClient->lastData['message']);
+    }
+
+    protected function getHandler($ravenClient)
+    {
+        $handler = new RavenHandler($ravenClient);
+
+        return $handler;
     }
 
     public function testWarning()
@@ -99,6 +99,18 @@ class RavenHandlerTest extends TestCase
         $this->assertEquals($release, $ravenClient->lastData['release']);
     }
 
+    public function testFingerprint()
+    {
+        $ravenClient = $this->getRavenClient();
+        $handler = $this->getHandler($ravenClient);
+
+        $fingerprint = array('{{ default }}', 'other value');
+        $record = $this->getRecord(Logger::INFO, 'test', array('fingerprint' => $fingerprint));
+        $handler->handle($record);
+
+        $this->assertEquals($fingerprint, $ravenClient->lastData['fingerprint']);
+    }
+
     public function testUserContext()
     {
         $ravenClient = $this->getRavenClient();
@@ -109,7 +121,7 @@ class RavenHandlerTest extends TestCase
 
         $user = array(
             'id' => '123',
-            'email' => 'test@test.com'
+            'email' => 'test@test.com',
         );
 
         $recordWithContext = $this->getRecord(Logger::INFO, 'test', array('user' => $user));
@@ -147,6 +159,11 @@ class RavenHandlerTest extends TestCase
         }
 
         $this->assertEquals($record['message'], $ravenClient->lastData['message']);
+    }
+
+    private function methodThatThrowsAnException()
+    {
+        throw new \Exception('This is an exception');
     }
 
     public function testHandleBatch()
@@ -192,8 +209,19 @@ class RavenHandlerTest extends TestCase
         $this->assertSame($formatter, $handler->getBatchFormatter());
     }
 
-    private function methodThatThrowsAnException()
+    public function testRelease()
     {
-        throw new \Exception('This is an exception');
+        $ravenClient = $this->getRavenClient();
+        $handler = $this->getHandler($ravenClient);
+        $release = 'v42.42.42';
+        $handler->setRelease($release);
+        $record = $this->getRecord(Logger::INFO, 'test');
+        $handler->handle($record);
+        $this->assertEquals($release, $ravenClient->lastData['release']);
+
+        $localRelease = 'v41.41.41';
+        $record = $this->getRecord(Logger::INFO, 'test', array('release' => $localRelease));
+        $handler->handle($record);
+        $this->assertEquals($localRelease, $ravenClient->lastData['release']);
     }
 }

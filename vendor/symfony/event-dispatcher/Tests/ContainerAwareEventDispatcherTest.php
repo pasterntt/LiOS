@@ -18,13 +18,6 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 class ContainerAwareEventDispatcherTest extends AbstractEventDispatcherTest
 {
-    protected function createEventDispatcher()
-    {
-        $container = new Container();
-
-        return new ContainerAwareEventDispatcher($container);
-    }
-
     public function testAddAListenerService()
     {
         $event = new Event();
@@ -58,6 +51,16 @@ class ContainerAwareEventDispatcherTest extends AbstractEventDispatcherTest
             ->with($event)
         ;
 
+        $service
+            ->expects($this->once())
+            ->method('onEventWithPriority')
+            ->with($event);
+
+        $service
+            ->expects($this->once())
+            ->method('onEventNested')
+            ->with($event);
+
         $container = new Container();
         $container->set('service.subscriber', $service);
 
@@ -65,6 +68,8 @@ class ContainerAwareEventDispatcherTest extends AbstractEventDispatcherTest
         $dispatcher->addSubscriberService('service.subscriber', 'Symfony\Component\EventDispatcher\Tests\SubscriberService');
 
         $dispatcher->dispatch('onEvent', $event);
+        $dispatcher->dispatch('onEventWithPriority', $event);
+        $dispatcher->dispatch('onEventNested', $event);
     }
 
     public function testPreventDuplicateListenerService()
@@ -159,6 +164,13 @@ class ContainerAwareEventDispatcherTest extends AbstractEventDispatcherTest
         $dispatcher->removeListener('onEvent', array($container->get('service.listener'), 'onEvent'));
         $this->assertFalse($dispatcher->hasListeners('onEvent'));
     }
+
+    protected function createEventDispatcher()
+    {
+        $container = new Container();
+
+        return new ContainerAwareEventDispatcher($container);
+    }
 }
 
 class Service
@@ -173,11 +185,21 @@ class SubscriberService implements EventSubscriberInterface
     public static function getSubscribedEvents()
     {
         return array(
-            'onEvent' => array('onEvent'),
+            'onEvent' => 'onEvent',
+            'onEventWithPriority' => array('onEventWithPriority', 10),
+            'onEventNested' => array(array('onEventNested')),
         );
     }
 
     public function onEvent(Event $e)
+    {
+    }
+
+    public function onEventWithPriority(Event $e)
+    {
+    }
+
+    public function onEventNested(Event $e)
     {
     }
 }

@@ -6,6 +6,14 @@ use PhpSpec\ObjectBehavior;
 use Prophecy\Argument;
 use Prophecy\Doubler\Generator\Node\MethodNode;
 
+/**
+ * @method void implementedMethod()
+ */
+interface MagicalApiInterface
+{
+
+}
+
 class MagicCallPatchSpec extends ObjectBehavior
 {
     function it_is_a_patch()
@@ -46,6 +54,19 @@ class MagicCallPatchSpec extends ObjectBehavior
         $this->apply($node);
     }
 
+    /**
+     * @param \Prophecy\Doubler\Generator\Node\ClassNode $node
+     */
+    function it_discovers_api_using_phpdoc_from_interface($node)
+    {
+        $node->getParentClass()->willReturn('spec\Prophecy\Doubler\ClassPatch\MagicalApiImplemented');
+
+        $node->addMethod(new MethodNode('implementedMethod'))->shouldBeCalled();
+
+        $this->apply($node);
+    }
+
+
     function it_has_50_priority()
     {
         $this->getPriority()->shouldReturn(50);
@@ -71,6 +92,13 @@ class MagicalApi
  * @method void definedMethod()
  */
 class MagicalApiExtended extends MagicalApi
+{
+
+}
+
+/**
+ */
+class MagicalApiImplemented implements MagicalApiInterface
 {
 
 }

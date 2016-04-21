@@ -32,6 +32,7 @@ class ClassMirror
         '__wakeup',
         '__toString',
         '__call',
+        '__invoke'
     );
 
     /**
@@ -109,18 +110,10 @@ class ClassMirror
             }
 
             if (true === $method->isFinal()) {
+                $node->addUnextendableMethod($method->getName());
                 continue;
             }
 
-            $this->reflectMethodToNode($method, $node);
-        }
-    }
-
-    private function reflectInterfaceToNode(ReflectionClass $interface, Node\ClassNode $node)
-    {
-        $node->addInterface($interface->getName());
-
-        foreach ($interface->getMethods() as $method) {
             $this->reflectMethodToNode($method, $node);
         }
     }
@@ -142,7 +135,17 @@ class ClassMirror
         }
 
         if (version_compare(PHP_VERSION, '7.0', '>=') && true === $method->hasReturnType()) {
-            $node->setReturnType((string) $method->getReturnType());
+            $returnType = (string)$method->getReturnType();
+            $returnTypeLower = strtolower($returnType);
+
+            if ('self' === $returnTypeLower) {
+                $returnType = $method->getDeclaringClass()->getName();
+            }
+            if ('parent' === $returnTypeLower) {
+                $returnType = $method->getDeclaringClass()->getParentClass()->getName();
+            }
+
+            $node->setReturnType($returnType);
         }
 
         if (is_array($params = $method->getParameters()) && count($params)) {
@@ -159,17 +162,17 @@ class ClassMirror
         $name = $parameter->getName() == '...' ? '__dot_dot_dot__' : $parameter->getName();
         $node = new Node\ArgumentNode($name);
 
-        $typeHint = $this->getTypeHint($parameter);
-        $node->setTypeHint($typeHint);
+        $node->setTypeHint($this->getTypeHint($parameter));
 
-        if (true === $parameter->isDefaultValueAvailable()) {
-            $node->setDefault($parameter->getDefaultValue());
-        } elseif (true === $parameter->isOptional()
-              || (true === $parameter->allowsNull() && $typeHint)) {
-            $node->setDefault(null);
+        if ($this->isVariadic($parameter)) {
+            $node->setAsVariadic();
         }
 
-        if (true === $parameter->isPassedByReference()) {
+        if ($this->hasDefaultValue($parameter)) {
+            $node->setDefault($this->getDefaultValue($parameter));
+        }
+
+        if ($parameter->isPassedByReference()) {
             $node->setAsPassedByReference();
         }
 
@@ -205,6 +208,47 @@ class ClassMirror
             preg_match('/\[\s\<\w+?>\s([\w,\\\]+)/s', $parameter, $matches);
 
             return isset($matches[1]) ? $matches[1] : null;
+        }
+    }
+
+    private function isVariadic(ReflectionParameter $parameter)
+    {
+        return PHP_VERSION_ID >= 50600 && $parameter->isVariadic();
+    }
+
+    private function hasDefaultValue(ReflectionParameter $parameter)
+    {
+        if ($this->isVariadic($parameter)) {
+            return false;
+        }
+
+        if ($parameter->isDefaultValueAvailable()) {
+            return true;
+        }
+
+        return $parameter->isOptional() || $this->isNullable($parameter);
+    }
+
+    private function isNullable(ReflectionParameter $parameter)
+    {
+        return $parameter->allowsNull() && null !== $this->getTypeHint($parameter);
+    }
+
+    private function getDefaultValue(ReflectionParameter $parameter)
+    {
+        if (!$parameter->isDefaultValueAvailable()) {
+            return null;
+        }
+
+        return $parameter->getDefaultValue();
+    }
+
+    private function reflectInterfaceToNode(ReflectionClass $interface, Node\ClassNode $node)
+    {
+        $node->addInterface($interface->getName());
+
+        foreach ($interface->getMethods() as $method) {
+            $this->reflectMethodToNode($method, $node);
         }
     }
 }

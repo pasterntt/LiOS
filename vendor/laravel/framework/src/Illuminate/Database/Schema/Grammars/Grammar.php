@@ -55,6 +55,24 @@ abstract class Grammar extends BaseGrammar
     }
 
     /**
+     * Create an empty Doctrine DBAL TableDiff from the Blueprint.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
+     * @param  \Doctrine\DBAL\Schema\AbstractSchemaManager $schema
+     * @return \Doctrine\DBAL\Schema\TableDiff
+     */
+    protected function getDoctrineTableDiff(Blueprint $blueprint, SchemaManager $schema)
+    {
+        $table = $this->getTablePrefix() . $blueprint->getTable();
+
+        $tableDiff = new TableDiff($table);
+
+        $tableDiff->fromTable = $schema->listTableDetails($table);
+
+        return $tableDiff;
+    }
+
+    /**
      * Set the renamed columns on the table diff.
      *
      * @param  \Doctrine\DBAL\Schema\TableDiff  $tableDiff
@@ -82,6 +100,8 @@ abstract class Grammar extends BaseGrammar
     {
         $table = $this->wrapTable($blueprint);
 
+        $index = $this->wrap($command->index);
+
         $on = $this->wrapTable($command->on);
 
         // We need to prepare several of the elements of the foreign key definition
@@ -91,7 +111,7 @@ abstract class Grammar extends BaseGrammar
 
         $onColumns = $this->columnize((array) $command->references);
 
-        $sql = "alter table {$table} add constraint {$command->index} ";
+        $sql = "alter table {$table} add constraint {$index} ";
 
         $sql .= "foreign key ({$columns}) references {$on} ({$onColumns})";
 
@@ -107,103 +127,6 @@ abstract class Grammar extends BaseGrammar
         }
 
         return $sql;
-    }
-
-    /**
-     * Compile the blueprint's column definitions.
-     *
-     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
-     * @return array
-     */
-    protected function getColumns(Blueprint $blueprint)
-    {
-        $columns = [];
-
-        foreach ($blueprint->getAddedColumns() as $column) {
-            // Each of the column types have their own compiler functions which are tasked
-            // with turning the column definition into its SQL format for this platform
-            // used by the connection. The column's modifiers are compiled and added.
-            $sql = $this->wrap($column).' '.$this->getType($column);
-
-            $columns[] = $this->addModifiers($sql, $blueprint, $column);
-        }
-
-        return $columns;
-    }
-
-    /**
-     * Add the column modifiers to the definition.
-     *
-     * @param  string  $sql
-     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Illuminate\Support\Fluent  $column
-     * @return string
-     */
-    protected function addModifiers($sql, Blueprint $blueprint, Fluent $column)
-    {
-        foreach ($this->modifiers as $modifier) {
-            if (method_exists($this, $method = "modify{$modifier}")) {
-                $sql .= $this->{$method}($blueprint, $column);
-            }
-        }
-
-        return $sql;
-    }
-
-    /**
-     * Get the primary key command if it exists on the blueprint.
-     *
-     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  string  $name
-     * @return \Illuminate\Support\Fluent|null
-     */
-    protected function getCommandByName(Blueprint $blueprint, $name)
-    {
-        $commands = $this->getCommandsByName($blueprint, $name);
-
-        if (count($commands) > 0) {
-            return reset($commands);
-        }
-    }
-
-    /**
-     * Get all of the commands with a given name.
-     *
-     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  string  $name
-     * @return array
-     */
-    protected function getCommandsByName(Blueprint $blueprint, $name)
-    {
-        return array_filter($blueprint->getCommands(), function ($value) use ($name) {
-            return $value->name == $name;
-        });
-    }
-
-    /**
-     * Get the SQL for the column data type.
-     *
-     * @param  \Illuminate\Support\Fluent  $column
-     * @return string
-     */
-    protected function getType(Fluent $column)
-    {
-        return $this->{'type'.ucfirst($column->type)}($column);
-    }
-
-    /**
-     * Add a prefix to an array of values.
-     *
-     * @param  string  $prefix
-     * @param  array   $values
-     * @return array
-     */
-    public function prefixArray($prefix, array $values)
-    {
-        return array_map(function ($value) use ($prefix) {
-            return $prefix.' '.$value;
-
-        }, $values);
     }
 
     /**
@@ -234,40 +157,18 @@ abstract class Grammar extends BaseGrammar
     }
 
     /**
-     * Format a value so that it can be used in "default" clauses.
+     * Add a prefix to an array of values.
      *
-     * @param  mixed   $value
-     * @return string
+     * @param  string $prefix
+     * @param  array $values
+     * @return array
      */
-    protected function getDefaultValue($value)
+    public function prefixArray($prefix, array $values)
     {
-        if ($value instanceof Expression) {
-            return $value;
-        }
+        return array_map(function ($value) use ($prefix) {
+            return $prefix . ' ' . $value;
 
-        if (is_bool($value)) {
-            return "'".(int) $value."'";
-        }
-
-        return "'".strval($value)."'";
-    }
-
-    /**
-     * Create an empty Doctrine DBAL TableDiff from the Blueprint.
-     *
-     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
-     * @param  \Doctrine\DBAL\Schema\AbstractSchemaManager  $schema
-     * @return \Doctrine\DBAL\Schema\TableDiff
-     */
-    protected function getDoctrineTableDiff(Blueprint $blueprint, SchemaManager $schema)
-    {
-        $table = $this->getTablePrefix().$blueprint->getTable();
-
-        $tableDiff = new TableDiff($table);
-
-        $tableDiff->fromTable = $schema->listTableDetails($table);
-
-        return $tableDiff;
+        }, $values);
     }
 
     /**
@@ -460,5 +361,106 @@ abstract class Grammar extends BaseGrammar
     protected function mapFluentValueToDoctrine($option, $value)
     {
         return $option == 'notnull' ? ! $value : $value;
+    }
+
+    /**
+     * Compile the blueprint's column definitions.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
+     * @return array
+     */
+    protected function getColumns(Blueprint $blueprint)
+    {
+        $columns = [];
+
+        foreach ($blueprint->getAddedColumns() as $column) {
+            // Each of the column types have their own compiler functions which are tasked
+            // with turning the column definition into its SQL format for this platform
+            // used by the connection. The column's modifiers are compiled and added.
+            $sql = $this->wrap($column) . ' ' . $this->getType($column);
+
+            $columns[] = $this->addModifiers($sql, $blueprint, $column);
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Get the SQL for the column data type.
+     *
+     * @param  \Illuminate\Support\Fluent $column
+     * @return string
+     */
+    protected function getType(Fluent $column)
+    {
+        return $this->{'type' . ucfirst($column->type)}($column);
+    }
+
+    /**
+     * Add the column modifiers to the definition.
+     *
+     * @param  string $sql
+     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
+     * @param  \Illuminate\Support\Fluent $column
+     * @return string
+     */
+    protected function addModifiers($sql, Blueprint $blueprint, Fluent $column)
+    {
+        foreach ($this->modifiers as $modifier) {
+            if (method_exists($this, $method = "modify{$modifier}")) {
+                $sql .= $this->{$method}($blueprint, $column);
+            }
+        }
+
+        return $sql;
+    }
+
+    /**
+     * Get the primary key command if it exists on the blueprint.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
+     * @param  string $name
+     * @return \Illuminate\Support\Fluent|null
+     */
+    protected function getCommandByName(Blueprint $blueprint, $name)
+    {
+        $commands = $this->getCommandsByName($blueprint, $name);
+
+        if (count($commands) > 0) {
+            return reset($commands);
+        }
+    }
+
+    /**
+     * Get all of the commands with a given name.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint $blueprint
+     * @param  string $name
+     * @return array
+     */
+    protected function getCommandsByName(Blueprint $blueprint, $name)
+    {
+        return array_filter($blueprint->getCommands(), function ($value) use ($name) {
+            return $value->name == $name;
+        });
+    }
+
+    /**
+     * Format a value so that it can be used in "default" clauses.
+     *
+     * @param  mixed $value
+     * @return string
+     */
+    protected function getDefaultValue($value)
+    {
+        if ($value instanceof Expression) {
+            return $value;
+        }
+
+        if (is_bool($value)) {
+            return "'" . (int)$value . "'";
+        }
+
+        return "'" . strval($value) . "'";
     }
 }

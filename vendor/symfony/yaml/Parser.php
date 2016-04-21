@@ -238,10 +238,6 @@ class Parser
                 if ($isRef) {
                     $this->refs[$isRef] = $data[$key];
                 }
-
-                if ($objectForMap && !is_object($data)) {
-                    $data = (object) $data;
-                }
             } else {
                 // multiple documents are not supported
                 if ('---' === $this->currentLine) {
@@ -305,7 +301,104 @@ class Parser
             mb_internal_encoding($mbEncoding);
         }
 
+        if ($objectForMap && !is_object($data) && 'mapping' === $context) {
+            $object = new \stdClass();
+
+            foreach ($data as $key => $value) {
+                $object->$key = $value;
+            }
+
+            $data = $object;
+        }
+
         return empty($data) ? null : $data;
+    }
+
+    /**
+     * Cleanups a YAML string to be parsed.
+     *
+     * @param string $value The input YAML string
+     *
+     * @return string A cleaned up YAML string
+     */
+    private function cleanup($value)
+    {
+        $value = str_replace(array("\r\n", "\r"), "\n", $value);
+
+        // strip YAML header
+        $count = 0;
+        $value = preg_replace('#^\%YAML[: ][\d\.]+.*\n#u', '', $value, -1, $count);
+        $this->offset += $count;
+
+        // remove leading comments
+        $trimmedValue = preg_replace('#^(\#.*?\n)+#s', '', $value, -1, $count);
+        if ($count == 1) {
+            // items have been removed, update the offset
+            $this->offset += substr_count($value, "\n") - substr_count($trimmedValue, "\n");
+            $value = $trimmedValue;
+        }
+
+        // remove start of the document marker (---)
+        $trimmedValue = preg_replace('#^\-\-\-.*?\n#s', '', $value, -1, $count);
+        if ($count == 1) {
+            // items have been removed, update the offset
+            $this->offset += substr_count($value, "\n") - substr_count($trimmedValue, "\n");
+            $value = $trimmedValue;
+
+            // remove end of the document marker (...)
+            $value = preg_replace('#\.\.\.\s*$#', '', $value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * Moves the parser to the next line.
+     *
+     * @return bool
+     */
+    private function moveToNextLine()
+    {
+        if ($this->currentLineNb >= count($this->lines) - 1) {
+            return false;
+        }
+
+        $this->currentLine = $this->lines[++$this->currentLineNb];
+
+        return true;
+    }
+
+    /**
+     * Returns true if the current line is blank or if it is a comment line.
+     *
+     * @return bool Returns true if the current line is empty or if it is a comment line, false otherwise
+     */
+    private function isCurrentLineEmpty()
+    {
+        return $this->isCurrentLineBlank() || $this->isCurrentLineComment();
+    }
+
+    /**
+     * Returns true if the current line is blank.
+     *
+     * @return bool Returns true if the current line is blank, false otherwise
+     */
+    private function isCurrentLineBlank()
+    {
+        return '' == trim($this->currentLine, ' ');
+    }
+
+    /**
+     * Returns true if the current line is a comment line.
+     *
+     * @return bool Returns true if the current line is a comment line, false otherwise
+     */
+    private function isCurrentLineComment()
+    {
+        //checking explicitly the first char of the trim is faster than loops or strpos
+        $ltrimmedLine = ltrim($this->currentLine, ' ');
+
+        return '' !== $ltrimmedLine && $ltrimmedLine[0] === '#';
     }
 
     /**
@@ -316,16 +409,6 @@ class Parser
     private function getRealCurrentLineNb()
     {
         return $this->currentLineNb + $this->offset;
-    }
-
-    /**
-     * Returns the current line indentation.
-     *
-     * @return int The current line indentation
-     */
-    private function getCurrentLineIndentation()
-    {
-        return strlen($this->currentLine) - strlen(ltrim($this->currentLine, ' '));
     }
 
     /**
@@ -341,7 +424,11 @@ class Parser
     private function getNextEmbedBlock($indentation = null, $inSequence = false)
     {
         $oldLineIndentation = $this->getCurrentLineIndentation();
-        $insideBlockScalar = $this->isBlockScalarHeader();
+        $blockScalarIndentations = array();
+
+        if ($this->isBlockScalarHeader()) {
+            $blockScalarIndentations[] = $this->getCurrentLineIndentation();
+        }
 
         if (!$this->moveToNextLine()) {
             return;
@@ -378,8 +465,8 @@ class Parser
 
         $isItUnindentedCollection = $this->isStringUnIndentedCollectionItem();
 
-        if (!$insideBlockScalar) {
-            $insideBlockScalar = $this->isBlockScalarHeader();
+        if (empty($blockScalarIndentations) && $this->isBlockScalarHeader()) {
+            $blockScalarIndentations[] = $this->getCurrentLineIndentation();
         }
 
         $previousLineIndentation = $this->getCurrentLineIndentation();
@@ -387,8 +474,17 @@ class Parser
         while ($this->moveToNextLine()) {
             $indent = $this->getCurrentLineIndentation();
 
-            if (!$insideBlockScalar && $indent === $previousLineIndentation) {
-                $insideBlockScalar = $this->isBlockScalarHeader();
+            // terminate all block scalars that are more indented than the current line
+            if (!empty($blockScalarIndentations) && $indent < $previousLineIndentation && trim($this->currentLine) !== '') {
+                foreach ($blockScalarIndentations as $key => $blockScalarIndentation) {
+                    if ($blockScalarIndentation >= $this->getCurrentLineIndentation()) {
+                        unset($blockScalarIndentations[$key]);
+                    }
+                }
+            }
+
+            if (empty($blockScalarIndentations) && !$this->isCurrentLineComment() && $this->isBlockScalarHeader()) {
+                $blockScalarIndentations[] = $this->getCurrentLineIndentation();
             }
 
             $previousLineIndentation = $indent;
@@ -404,7 +500,7 @@ class Parser
             }
 
             // we ignore "comment" lines only when we are not inside a scalar block
-            if (!$insideBlockScalar && $this->isCurrentLineComment()) {
+            if (empty($blockScalarIndentations) && $this->isCurrentLineComment()) {
                 continue;
             }
 
@@ -423,19 +519,33 @@ class Parser
     }
 
     /**
-     * Moves the parser to the next line.
+     * Returns the current line indentation.
+     *
+     * @return int The current line indentation
+     */
+    private function getCurrentLineIndentation()
+    {
+        return strlen($this->currentLine) - strlen(ltrim($this->currentLine, ' '));
+    }
+
+    /**
+     * Tests whether or not the current line is the header of a block scalar.
      *
      * @return bool
      */
-    private function moveToNextLine()
+    private function isBlockScalarHeader()
     {
-        if ($this->currentLineNb >= count($this->lines) - 1) {
-            return false;
-        }
+        return (bool)preg_match('~' . self::BLOCK_SCALAR_HEADER_PATTERN . '$~', $this->currentLine);
+    }
 
-        $this->currentLine = $this->lines[++$this->currentLineNb];
-
-        return true;
+    /**
+     * Returns true if the string is un-indented collection item.
+     *
+     * @return bool Returns true if the string is un-indented collection item, false otherwise
+     */
+    private function isStringUnIndentedCollectionItem()
+    {
+        return 0 === strpos($this->currentLine, '- ');
     }
 
     /**
@@ -444,6 +554,34 @@ class Parser
     private function moveToPreviousLine()
     {
         $this->currentLine = $this->lines[--$this->currentLineNb];
+    }
+
+    /**
+     * Returns true if the next line is indented.
+     *
+     * @return bool Returns true if the next line is indented, false otherwise
+     */
+    private function isNextLineIndented()
+    {
+        $currentIndentation = $this->getCurrentLineIndentation();
+        $EOF = !$this->moveToNextLine();
+
+        while (!$EOF && $this->isCurrentLineEmpty()) {
+            $EOF = !$this->moveToNextLine();
+        }
+
+        if ($EOF) {
+            return false;
+        }
+
+        $ret = false;
+        if ($this->getCurrentLineIndentation() > $currentIndentation) {
+            $ret = true;
+        }
+
+        $this->moveToPreviousLine();
+
+        return $ret;
     }
 
     /**
@@ -569,7 +707,7 @@ class Parser
             $previousLineIndented = false;
             $previousLineBlank = false;
 
-            for ($i = 0; $i < count($blockLines); $i++) {
+            for ($i = 0; $i < count($blockLines); ++$i) {
                 if ('' === $blockLines[$i]) {
                     $text .= "\n";
                     $previousLineIndented = false;
@@ -607,105 +745,6 @@ class Parser
     }
 
     /**
-     * Returns true if the next line is indented.
-     *
-     * @return bool Returns true if the next line is indented, false otherwise
-     */
-    private function isNextLineIndented()
-    {
-        $currentIndentation = $this->getCurrentLineIndentation();
-        $EOF = !$this->moveToNextLine();
-
-        while (!$EOF && $this->isCurrentLineEmpty()) {
-            $EOF = !$this->moveToNextLine();
-        }
-
-        if ($EOF) {
-            return false;
-        }
-
-        $ret = false;
-        if ($this->getCurrentLineIndentation() > $currentIndentation) {
-            $ret = true;
-        }
-
-        $this->moveToPreviousLine();
-
-        return $ret;
-    }
-
-    /**
-     * Returns true if the current line is blank or if it is a comment line.
-     *
-     * @return bool Returns true if the current line is empty or if it is a comment line, false otherwise
-     */
-    private function isCurrentLineEmpty()
-    {
-        return $this->isCurrentLineBlank() || $this->isCurrentLineComment();
-    }
-
-    /**
-     * Returns true if the current line is blank.
-     *
-     * @return bool Returns true if the current line is blank, false otherwise
-     */
-    private function isCurrentLineBlank()
-    {
-        return '' == trim($this->currentLine, ' ');
-    }
-
-    /**
-     * Returns true if the current line is a comment line.
-     *
-     * @return bool Returns true if the current line is a comment line, false otherwise
-     */
-    private function isCurrentLineComment()
-    {
-        //checking explicitly the first char of the trim is faster than loops or strpos
-        $ltrimmedLine = ltrim($this->currentLine, ' ');
-
-        return $ltrimmedLine[0] === '#';
-    }
-
-    /**
-     * Cleanups a YAML string to be parsed.
-     *
-     * @param string $value The input YAML string
-     *
-     * @return string A cleaned up YAML string
-     */
-    private function cleanup($value)
-    {
-        $value = str_replace(array("\r\n", "\r"), "\n", $value);
-
-        // strip YAML header
-        $count = 0;
-        $value = preg_replace('#^\%YAML[: ][\d\.]+.*\n#u', '', $value, -1, $count);
-        $this->offset += $count;
-
-        // remove leading comments
-        $trimmedValue = preg_replace('#^(\#.*?\n)+#s', '', $value, -1, $count);
-        if ($count == 1) {
-            // items have been removed, update the offset
-            $this->offset += substr_count($value, "\n") - substr_count($trimmedValue, "\n");
-            $value = $trimmedValue;
-        }
-
-        // remove start of the document marker (---)
-        $trimmedValue = preg_replace('#^\-\-\-.*?\n#s', '', $value, -1, $count);
-        if ($count == 1) {
-            // items have been removed, update the offset
-            $this->offset += substr_count($value, "\n") - substr_count($trimmedValue, "\n");
-            $value = $trimmedValue;
-
-            // remove end of the document marker (...)
-            $value = preg_replace('#\.\.\.\s*$#', '', $value);
-        }
-
-        return $value;
-    }
-
-    /**
      * Returns true if the next line starts unindented collection.
      *
      * @return bool Returns true if the next line starts unindented collection, false otherwise
@@ -735,25 +774,5 @@ class Parser
         $this->moveToPreviousLine();
 
         return $ret;
-    }
-
-    /**
-     * Returns true if the string is un-indented collection item.
-     *
-     * @return bool Returns true if the string is un-indented collection item, false otherwise
-     */
-    private function isStringUnIndentedCollectionItem()
-    {
-        return 0 === strpos($this->currentLine, '- ');
-    }
-
-    /**
-     * Tests whether or not the current line is the header of a block scalar.
-     *
-     * @return bool
-     */
-    private function isBlockScalarHeader()
-    {
-        return (bool) preg_match('~'.self::BLOCK_SCALAR_HEADER_PATTERN.'$~', $this->currentLine);
     }
 }

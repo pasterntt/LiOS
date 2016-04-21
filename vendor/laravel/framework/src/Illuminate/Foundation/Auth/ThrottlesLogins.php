@@ -24,6 +24,37 @@ trait ThrottlesLogins
     }
 
     /**
+     * Get the throttle key for the given request.
+     *
+     * @param  \Illuminate\Http\Request $request
+     * @return string
+     */
+    protected function getThrottleKey(Request $request)
+    {
+        return mb_strtolower($request->input($this->loginUsername())) . '|' . $request->ip();
+    }
+
+    /**
+     * Get the maximum number of login attempts for delaying further attempts.
+     *
+     * @return int
+     */
+    protected function maxLoginAttempts()
+    {
+        return property_exists($this, 'maxLoginAttempts') ? $this->maxLoginAttempts : 5;
+    }
+
+    /**
+     * The number of seconds to delay further login attempts.
+     *
+     * @return int
+     */
+    protected function lockoutTime()
+    {
+        return property_exists($this, 'lockoutTime') ? $this->lockoutTime : 60;
+    }
+
+    /**
      * Increment the login attempts for the user.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -58,15 +89,26 @@ trait ThrottlesLogins
      */
     protected function sendLockoutResponse(Request $request)
     {
-        $seconds = app(RateLimiter::class)->availableIn(
-            $this->getThrottleKey($request)
-        );
+        $seconds = $this->secondsRemainingOnLockout($request);
 
         return redirect()->back()
             ->withInput($request->only($this->loginUsername(), 'remember'))
             ->withErrors([
                 $this->loginUsername() => $this->getLockoutErrorMessage($seconds),
             ]);
+    }
+
+    /**
+     * Get the lockout seconds.
+     *
+     * @param  \Illuminate\Http\Request $request
+     * @return int
+     */
+    protected function secondsRemainingOnLockout(Request $request)
+    {
+        return app(RateLimiter::class)->availableIn(
+            $this->getThrottleKey($request)
+        );
     }
 
     /**
@@ -93,37 +135,6 @@ trait ThrottlesLogins
         app(RateLimiter::class)->clear(
             $this->getThrottleKey($request)
         );
-    }
-
-    /**
-     * Get the throttle key for the given request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return string
-     */
-    protected function getThrottleKey(Request $request)
-    {
-        return mb_strtolower($request->input($this->loginUsername())).'|'.$request->ip();
-    }
-
-    /**
-     * Get the maximum number of login attempts for delaying further attempts.
-     *
-     * @return int
-     */
-    protected function maxLoginAttempts()
-    {
-        return property_exists($this, 'maxLoginAttempts') ? $this->maxLoginAttempts : 5;
-    }
-
-    /**
-     * The number of seconds to delay further login attempts.
-     *
-     * @return int
-     */
-    protected function lockoutTime()
-    {
-        return property_exists($this, 'lockoutTime') ? $this->lockoutTime : 60;
     }
 
     /**

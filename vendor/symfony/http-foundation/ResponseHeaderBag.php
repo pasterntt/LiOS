@@ -56,50 +56,11 @@ class ResponseHeaderBag extends HeaderBag
     /**
      * {@inheritdoc}
      */
-    public function __toString()
-    {
-        $cookies = '';
-        foreach ($this->getCookies() as $cookie) {
-            $cookies .= 'Set-Cookie: '.$cookie."\r\n";
-        }
-
-        ksort($this->headerNames);
-
-        return parent::__toString().$cookies;
-    }
-
-    /**
-     * Returns the headers, with original capitalizations.
-     *
-     * @return array An array of headers
-     */
-    public function allPreserveCase()
-    {
-        return array_combine($this->headerNames, $this->headers);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function replace(array $headers = array())
-    {
-        $this->headerNames = array();
-
-        parent::replace($headers);
-
-        if (!isset($this->headers['cache-control'])) {
-            $this->set('Cache-Control', '');
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function set($key, $values, $replace = true)
     {
         parent::set($key, $values, $replace);
 
-        $uniqueKey = strtr(strtolower($key), '_', '-');
+        $uniqueKey = str_replace('_', '-', strtolower($key));
         $this->headerNames[$uniqueKey] = $key;
 
         // ensure the cache-control header has sensible defaults
@@ -112,68 +73,50 @@ class ResponseHeaderBag extends HeaderBag
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function remove($key)
-    {
-        parent::remove($key);
-
-        $uniqueKey = strtr(strtolower($key), '_', '-');
-        unset($this->headerNames[$uniqueKey]);
-
-        if ('cache-control' === $uniqueKey) {
-            $this->computedCacheControl = array();
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function hasCacheControlDirective($key)
-    {
-        return array_key_exists($key, $this->computedCacheControl);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getCacheControlDirective($key)
-    {
-        return array_key_exists($key, $this->computedCacheControl) ? $this->computedCacheControl[$key] : null;
-    }
-
-    /**
-     * Sets a cookie.
+     * Returns the calculated value of the cache-control header.
      *
-     * @param Cookie $cookie
+     * This considers several other headers and calculates or modifies the
+     * cache-control header to a sensible, conservative value.
+     *
+     * @return string
      */
-    public function setCookie(Cookie $cookie)
+    protected function computeCacheControlValue()
     {
-        $this->cookies[$cookie->getDomain()][$cookie->getPath()][$cookie->getName()] = $cookie;
+        if (!$this->cacheControl && !$this->has('ETag') && !$this->has('Last-Modified') && !$this->has('Expires')) {
+            return 'no-cache';
+        }
+
+        if (!$this->cacheControl) {
+            // conservative by default
+            return 'private, must-revalidate';
+        }
+
+        $header = $this->getCacheControlHeader();
+        if (isset($this->cacheControl['public']) || isset($this->cacheControl['private'])) {
+            return $header;
+        }
+
+        // public if s-maxage is defined, private otherwise
+        if (!isset($this->cacheControl['s-maxage'])) {
+            return $header . ', private';
+        }
+
+        return $header;
     }
 
     /**
-     * Removes a cookie from the array, but does not unset it in the browser.
-     *
-     * @param string $name
-     * @param string $path
-     * @param string $domain
+     * {@inheritdoc}
      */
-    public function removeCookie($name, $path = '/', $domain = null)
+    public function __toString()
     {
-        if (null === $path) {
-            $path = '/';
+        $cookies = '';
+        foreach ($this->getCookies() as $cookie) {
+            $cookies .= 'Set-Cookie: '.$cookie."\r\n";
         }
 
-        unset($this->cookies[$domain][$path][$name]);
+        ksort($this->headerNames);
 
-        if (empty($this->cookies[$domain][$path])) {
-            unset($this->cookies[$domain][$path]);
-
-            if (empty($this->cookies[$domain])) {
-                unset($this->cookies[$domain]);
-            }
-        }
+        return parent::__toString().$cookies;
     }
 
     /**
@@ -208,6 +151,85 @@ class ResponseHeaderBag extends HeaderBag
     }
 
     /**
+     * Returns the headers, with original capitalizations.
+     *
+     * @return array An array of headers
+     */
+    public function allPreserveCase()
+    {
+        return array_combine($this->headerNames, $this->headers);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function replace(array $headers = array())
+    {
+        $this->headerNames = array();
+
+        parent::replace($headers);
+
+        if (!isset($this->headers['cache-control'])) {
+            $this->set('Cache-Control', '');
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function remove($key)
+    {
+        parent::remove($key);
+
+        $uniqueKey = str_replace('_', '-', strtolower($key));
+        unset($this->headerNames[$uniqueKey]);
+
+        if ('cache-control' === $uniqueKey) {
+            $this->computedCacheControl = array();
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function hasCacheControlDirective($key)
+    {
+        return array_key_exists($key, $this->computedCacheControl);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getCacheControlDirective($key)
+    {
+        return array_key_exists($key, $this->computedCacheControl) ? $this->computedCacheControl[$key] : null;
+    }
+
+    /**
+     * Removes a cookie from the array, but does not unset it in the browser.
+     *
+     * @param string $name
+     * @param string $path
+     * @param string $domain
+     */
+    public function removeCookie($name, $path = '/', $domain = null)
+    {
+        if (null === $path) {
+            $path = '/';
+        }
+
+        unset($this->cookies[$domain][$path][$name]);
+
+        if (empty($this->cookies[$domain][$path])) {
+            unset($this->cookies[$domain][$path]);
+
+            if (empty($this->cookies[$domain])) {
+                unset($this->cookies[$domain]);
+            }
+        }
+    }
+
+    /**
      * Clears a cookie in the browser.
      *
      * @param string $name
@@ -219,6 +241,16 @@ class ResponseHeaderBag extends HeaderBag
     public function clearCookie($name, $path = '/', $domain = null, $secure = false, $httpOnly = true)
     {
         $this->setCookie(new Cookie($name, null, 1, $path, $domain, $secure, $httpOnly));
+    }
+
+    /**
+     * Sets a cookie.
+     *
+     * @param Cookie $cookie
+     */
+    public function setCookie(Cookie $cookie)
+    {
+        $this->cookies[$cookie->getDomain()][$cookie->getPath()][$cookie->getName()] = $cookie;
     }
 
     /**
@@ -268,37 +300,5 @@ class ResponseHeaderBag extends HeaderBag
         }
 
         return $output;
-    }
-
-    /**
-     * Returns the calculated value of the cache-control header.
-     *
-     * This considers several other headers and calculates or modifies the
-     * cache-control header to a sensible, conservative value.
-     *
-     * @return string
-     */
-    protected function computeCacheControlValue()
-    {
-        if (!$this->cacheControl && !$this->has('ETag') && !$this->has('Last-Modified') && !$this->has('Expires')) {
-            return 'no-cache';
-        }
-
-        if (!$this->cacheControl) {
-            // conservative by default
-            return 'private, must-revalidate';
-        }
-
-        $header = $this->getCacheControlHeader();
-        if (isset($this->cacheControl['public']) || isset($this->cacheControl['private'])) {
-            return $header;
-        }
-
-        // public if s-maxage is defined, private otherwise
-        if (!isset($this->cacheControl['s-maxage'])) {
-            return $header.', private';
-        }
-
-        return $header;
     }
 }

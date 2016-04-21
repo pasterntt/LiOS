@@ -29,6 +29,7 @@ class Pluralizer
         'rain',
         'money',
         'moose',
+        'nutrition',
         'offspring',
         'plankton',
         'police',
@@ -56,19 +57,6 @@ class Pluralizer
         $plural = Inflector::pluralize($value);
 
         return static::matchCase($plural, $value);
-    }
-
-    /**
-     * Get the singular form of an English word.
-     *
-     * @param  string  $value
-     * @return string
-     */
-    public static function singular($value)
-    {
-        $singular = Inflector::singularize($value);
-
-        return static::matchCase($singular, $value);
     }
 
     /**
@@ -100,5 +88,18 @@ class Pluralizer
         }
 
         return $value;
+    }
+
+    /**
+     * Get the singular form of an English word.
+     *
+     * @param  string $value
+     * @return string
+     */
+    public static function singular($value)
+    {
+        $singular = Inflector::singularize($value);
+
+        return static::matchCase($singular, $value);
     }
 }

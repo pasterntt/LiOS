@@ -138,12 +138,12 @@ class Question
      */
     public function setAutocompleterValues($values)
     {
-        if (is_array($values) && $this->isAssoc($values)) {
-            $values = array_merge(array_keys($values), array_values($values));
+        if (is_array($values)) {
+            $values = $this->isAssoc($values) ? array_merge(array_keys($values), array_values($values)) : array_values($values);
         }
 
         if (null !== $values && !is_array($values)) {
-            if (!$values instanceof \Traversable || $values instanceof \Countable) {
+            if (!$values instanceof \Traversable || !$values instanceof \Countable) {
                 throw new InvalidArgumentException('Autocompleter values can be either an array, `null` or an object implementing both `Countable` and `Traversable` interfaces.');
             }
         }
@@ -155,6 +155,21 @@ class Question
         $this->autocompleterValues = $values;
 
         return $this;
+    }
+
+    protected function isAssoc($array)
+    {
+        return (bool)count(array_filter(array_keys($array), 'is_string'));
+    }
+
+    /**
+     * Gets the validator for the question.
+     *
+     * @return null|callable
+     */
+    public function getValidator()
+    {
+        return $this->validator;
     }
 
     /**
@@ -169,16 +184,6 @@ class Question
         $this->validator = $validator;
 
         return $this;
-    }
-
-    /**
-     * Gets the validator for the question.
-     *
-     * @return null|callable
-     */
-    public function getValidator()
-    {
-        return $this->validator;
     }
 
     /**
@@ -216,6 +221,18 @@ class Question
     }
 
     /**
+     * Gets the normalizer for the response.
+     *
+     * The normalizer can ba a callable (a string), a closure or a class implementing __invoke.
+     *
+     * @return callable
+     */
+    public function getNormalizer()
+    {
+        return $this->normalizer;
+    }
+
+    /**
      * Sets a normalizer for the response.
      *
      * The normalizer can be a callable (a string), a closure or a class implementing __invoke.
@@ -229,22 +246,5 @@ class Question
         $this->normalizer = $normalizer;
 
         return $this;
-    }
-
-    /**
-     * Gets the normalizer for the response.
-     *
-     * The normalizer can ba a callable (a string), a closure or a class implementing __invoke.
-     *
-     * @return callable
-     */
-    public function getNormalizer()
-    {
-        return $this->normalizer;
-    }
-
-    protected function isAssoc($array)
-    {
-        return (bool) count(array_filter(array_keys($array), 'is_string'));
     }
 }

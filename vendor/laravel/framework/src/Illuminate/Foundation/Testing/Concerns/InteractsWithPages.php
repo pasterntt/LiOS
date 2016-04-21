@@ -2,13 +2,22 @@
 
 namespace Illuminate\Foundation\Testing\Concerns;
 
-use Exception;
-use Illuminate\Support\Str;
+use Closure;
 use InvalidArgumentException;
+use Illuminate\Http\UploadedFile;
 use Symfony\Component\DomCrawler\Form;
 use Symfony\Component\DomCrawler\Crawler;
 use Illuminate\Foundation\Testing\HttpException;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Illuminate\Foundation\Testing\Constraints\HasText;
+use Illuminate\Foundation\Testing\Constraints\HasLink;
+use Illuminate\Foundation\Testing\Constraints\HasValue;
+use Illuminate\Foundation\Testing\Constraints\HasSource;
+use Illuminate\Foundation\Testing\Constraints\IsChecked;
+use Illuminate\Foundation\Testing\Constraints\HasElement;
+use Illuminate\Foundation\Testing\Constraints\IsSelected;
+use Illuminate\Foundation\Testing\Constraints\HasInElement;
+use Illuminate\Foundation\Testing\Constraints\PageConstraint;
+use Illuminate\Foundation\Testing\Constraints\ReversePageConstraint;
 use PHPUnit_Framework_ExpectationFailedException as PHPUnitException;
 
 trait InteractsWithPages
@@ -19,6 +28,13 @@ trait InteractsWithPages
      * @var \Symfony\Component\DomCrawler\Crawler
      */
     protected $crawler;
+
+    /**
+     * Nested crawler instances used by the "within" method.
+     *
+     * @var array
+     */
+    protected $subCrawlers = [];
 
     /**
      * All of the stored inputs for the current page.
@@ -35,102 +51,269 @@ trait InteractsWithPages
     protected $uploads = [];
 
     /**
-     * Visit the given URI with a GET request.
+     * Narrow the test content to a specific area of the page.
      *
-     * @param  string  $uri
+     * @param  string $element
+     * @param  \Closure $callback
      * @return $this
      */
-    public function visit($uri)
+    public function within($element, Closure $callback)
     {
-        return $this->makeRequest('GET', $uri);
-    }
+        $this->subCrawlers[] = $this->crawler()->filter($element);
 
-    /**
-     * Make a request to the application and create a Crawler instance.
-     *
-     * @param  string  $method
-     * @param  string  $uri
-     * @param  array  $parameters
-     * @param  array  $cookies
-     * @param  array  $files
-     * @return $this
-     */
-    protected function makeRequest($method, $uri, $parameters = [], $cookies = [], $files = [])
-    {
-        $uri = $this->prepareUrlForRequest($uri);
+        $callback();
 
-        $this->call($method, $uri, $parameters, $cookies, $files);
-
-        $this->clearInputs()->followRedirects()->assertPageLoaded($uri);
-
-        $this->currentUri = $this->app->make('request')->fullUrl();
-
-        $this->crawler = new Crawler($this->response->getContent(), $uri);
+        array_pop($this->subCrawlers);
 
         return $this;
     }
 
     /**
-     * Make a request to the application using the given form.
+     * Get the current crawler according to the test context.
      *
-     * @param  \Symfony\Component\DomCrawler\Form  $form
-     * @param  array  $uploads
-     * @return $this
+     * @return \Symfony\Component\DomCrawler\Crawler
      */
-    protected function makeRequestUsingForm(Form $form, array $uploads = [])
+    protected function crawler()
     {
-        $files = $this->convertUploadsForTesting($form, $uploads);
-
-        return $this->makeRequest(
-            $form->getMethod(), $form->getUri(), $this->extractParametersFromForm($form), [], $files
-        );
-    }
-
-    /**
-     * Extract the parameters from the given form.
-     *
-     * @param  \Symfony\Component\DomCrawler\Form  $form
-     * @return array
-     */
-    protected function extractParametersFromForm(Form $form)
-    {
-        parse_str(http_build_query($form->getValues()), $parameters);
-
-        return $parameters;
-    }
-
-    /**
-     * Follow redirects from the last response.
-     *
-     * @return $this
-     */
-    protected function followRedirects()
-    {
-        while ($this->response->isRedirect()) {
-            $this->makeRequest('GET', $this->response->getTargetUrl());
+        if (!empty($this->subCrawlers)) {
+            return end($this->subCrawlers);
         }
 
+        return $this->crawler;
+    }
+
+    /**
+     * Assert that a given string is seen on the current HTML.
+     *
+     * @param  string $text
+     * @param  bool $negate
+     * @return $this
+     */
+    public function see($text, $negate = false)
+    {
+        return $this->assertInPage(new HasSource($text), $negate);
+    }
+
+    /**
+     * Assert the given constraint.
+     *
+     * @param  \Illuminate\Foundation\Testing\Constraints\PageConstraint $constraint
+     * @param  bool $reverse
+     * @param  string $message
+     * @return $this
+     */
+    protected function assertInPage(PageConstraint $constraint, $reverse = false, $message = '')
+    {
+        if ($reverse) {
+            $constraint = new ReversePageConstraint($constraint);
+        }
+
+        self::assertThat(
+            $this->crawler() ?: $this->response->getContent(),
+            $constraint, $message
+        );
+
         return $this;
     }
 
     /**
-     * Clear the inputs for the current page.
+     * Assert that a given string is not seen on the current HTML.
      *
+     * @param  string $text
      * @return $this
      */
-    protected function clearInputs()
+    public function dontSee($text)
     {
-        $this->inputs = [];
+        return $this->assertInPage(new HasSource($text), true);
+    }
 
-        $this->uploads = [];
+    /**
+     * Assert that an element is present on the page.
+     *
+     * @param  string $selector
+     * @param  array $attributes
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeElement($selector, array $attributes = [], $negate = false)
+    {
+        return $this->assertInPage(new HasElement($selector, $attributes), $negate);
+    }
 
-        return $this;
+    /**
+     * Assert that an element is not present on the page.
+     *
+     * @param  string $selector
+     * @param  array $attributes
+     * @return $this
+     */
+    public function dontSeeElement($selector, array $attributes = [])
+    {
+        return $this->assertInPage(new HasElement($selector, $attributes), true);
+    }
+
+    /**
+     * Assert that a given string is seen on the current text.
+     *
+     * @param  string  $text
+     * @param  bool  $negate
+     * @return $this
+     */
+    public function seeText($text, $negate = false)
+    {
+        return $this->assertInPage(new HasText($text), $negate);
+    }
+
+    /**
+     * Assert that a given string is not seen on the current text.
+     *
+     * @param  string  $text
+     * @return $this
+     */
+    public function dontSeeText($text)
+    {
+        return $this->assertInPage(new HasText($text), true);
+    }
+
+    /**
+     * Assert that a given string is seen inside an element.
+     *
+     * @param  string  $element
+     * @param  string  $text
+     * @param  bool  $negate
+     * @return $this
+     */
+    public function seeInElement($element, $text, $negate = false)
+    {
+        return $this->assertInPage(new HasInElement($element, $text), $negate);
+    }
+
+    /**
+     * Assert that a given string is not seen inside an element.
+     *
+     * @param  string  $element
+     * @param  string  $text
+     * @return $this
+     */
+    public function dontSeeInElement($element, $text)
+    {
+        return $this->assertInPage(new HasInElement($element, $text), true);
+    }
+
+    /**
+     * Assert that a given link is seen on the page.
+     *
+     * @param  string $text
+     * @param  string|null $url
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeLink($text, $url = null, $negate = false)
+    {
+        return $this->assertInPage(new HasLink($text, $url), $negate);
+    }
+
+    /**
+     * Assert that a given link is not seen on the page.
+     *
+     * @param  string  $text
+     * @param  string|null  $url
+     * @return $this
+     */
+    public function dontSeeLink($text, $url = null)
+    {
+        return $this->assertInPage(new HasLink($text, $url), true);
+    }
+
+    /**
+     * Assert that an input field contains the given value.
+     *
+     * @param  string $selector
+     * @param  string $expected
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeInField($selector, $expected, $negate = false)
+    {
+        return $this->assertInPage(new HasValue($selector, $expected), $negate);
+    }
+
+    /**
+     * Assert that an input field does not contain the given value.
+     *
+     * @param  string $selector
+     * @param  string $value
+     * @return $this
+     */
+    public function dontSeeInField($selector, $value)
+    {
+        return $this->assertInPage(new HasValue($selector, $value), true);
+    }
+
+    /**
+     * Assert that the expected value is selected.
+     *
+     * @param  string  $selector
+     * @param  string $value
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeIsSelected($selector, $value, $negate = false)
+    {
+        return $this->assertInPage(new IsSelected($selector, $value), $negate);
+    }
+
+    /**
+     * Assert that the given value is not selected.
+     *
+     * @param  string  $selector
+     * @param  string  $value
+     * @return $this
+     */
+    public function dontSeeIsSelected($selector, $value)
+    {
+        return $this->assertInPage(new IsSelected($selector, $value), true);
+    }
+
+    /**
+     * Assert that the given checkbox is selected.
+     *
+     * @param  string  $selector
+     * @param  bool $negate
+     * @return $this
+     */
+    public function seeIsChecked($selector, $negate = false)
+    {
+        return $this->assertInPage(new IsChecked($selector), $negate);
+    }
+
+    /**
+     * Assert that the given checkbox is not selected.
+     *
+     * @param  string  $selector
+     * @return $this
+     */
+    public function dontSeeIsChecked($selector)
+    {
+        return $this->assertInPage(new IsChecked($selector), true);
+    }
+
+    /**
+     * Clean the crawler and the subcrawlers values to reset the page context.
+     *
+     * @return void
+     */
+    protected function resetPageContext()
+    {
+        $this->crawler = null;
+
+        $this->subCrawlers = [];
     }
 
     /**
      * Assert that the current page matches a given URI.
      *
-     * @param  string  $uri
+     * @param  string $uri
      * @return $this
      */
     protected function seePageIs($uri)
@@ -145,459 +328,21 @@ trait InteractsWithPages
     }
 
     /**
-     * Assert that a given page successfully loaded.
-     *
-     * @param  string  $uri
-     * @param  string|null  $message
-     * @return void
-     *
-     * @throws \Illuminate\Foundation\Testing\HttpException
-     */
-    protected function assertPageLoaded($uri, $message = null)
-    {
-        $status = $this->response->getStatusCode();
-
-        try {
-            $this->assertEquals(200, $status);
-        } catch (PHPUnitException $e) {
-            $message = $message ?: "A request to [{$uri}] failed. Received status code [{$status}].";
-
-            $responseException = isset($this->response->exception)
-                    ? $this->response->exception : null;
-
-            throw new HttpException($message, null, $responseException);
-        }
-    }
-
-    /**
-     * Assert that a given string is seen on the page.
-     *
-     * @param  string  $text
-     * @param  bool  $negate
-     * @return $this
-     */
-    protected function see($text, $negate = false)
-    {
-        $method = $negate ? 'assertNotRegExp' : 'assertRegExp';
-
-        $rawPattern = preg_quote($text, '/');
-
-        $escapedPattern = preg_quote(e($text), '/');
-
-        $pattern = $rawPattern == $escapedPattern
-                ? $rawPattern : "({$rawPattern}|{$escapedPattern})";
-
-        $this->$method("/$pattern/i", $this->response->getContent());
-
-        return $this;
-    }
-
-    /**
-     * Assert that a given string is not seen on the page.
-     *
-     * @param  string  $text
-     * @return $this
-     */
-    protected function dontSee($text)
-    {
-        return $this->see($text, true);
-    }
-
-    /**
-     * Assert that a given string is seen inside an element.
-     *
-     * @param  string  $element
-     * @param  string  $text
-     * @param  bool  $negate
-     * @return $this
-     */
-    public function seeInElement($element, $text, $negate = false)
-    {
-        if ($negate) {
-            return $this->dontSeeInElement($element, $text);
-        }
-
-        $this->assertTrue(
-            $this->hasInElement($element, $text),
-            "Element [$element] should contain the expected text [{$text}]"
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that a given string is not seen inside an element.
-     *
-     * @param  string  $element
-     * @param  string  $text
-     * @return $this
-     */
-    public function dontSeeInElement($element, $text)
-    {
-        $this->assertFalse(
-            $this->hasInElement($element, $text),
-            "Element [$element] should not contain the expected text [{$text}]"
-        );
-
-        return $this;
-    }
-
-    /**
-     * Check if the page contains text within the given element.
-     *
-     * @param  string  $element
-     * @param  string  $text
-     * @return bool
-     */
-    protected function hasInElement($element, $text)
-    {
-        $elements = $this->crawler->filter($element);
-
-        $rawPattern = preg_quote($text, '/');
-
-        $escapedPattern = preg_quote(e($text), '/');
-
-        $pattern = $rawPattern == $escapedPattern
-            ? $rawPattern : "({$rawPattern}|{$escapedPattern})";
-
-        foreach ($elements as $element) {
-            $element = new Crawler($element);
-
-            if (preg_match("/$pattern/i", $element->html())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Assert that a given link is seen on the page.
-     *
-     * @param  string  $text
-     * @param  string|null  $url
-     * @return $this
-     */
-    public function seeLink($text, $url = null)
-    {
-        $message = "No links were found with expected text [{$text}]";
-
-        if ($url) {
-            $message .= " and URL [{$url}]";
-        }
-
-        $this->assertTrue($this->hasLink($text, $url), "{$message}.");
-
-        return $this;
-    }
-
-    /**
-     * Assert that a given link is not seen on the page.
-     *
-     * @param  string  $text
-     * @param  string|null  $url
-     * @return $this
-     */
-    public function dontSeeLink($text, $url = null)
-    {
-        $message = "A link was found with expected text [{$text}]";
-
-        if ($url) {
-            $message .= " and URL [{$url}]";
-        }
-
-        $this->assertFalse($this->hasLink($text, $url), "{$message}.");
-
-        return $this;
-    }
-
-    /**
-     * Check if the page has a link with the given $text and optional $url.
-     *
-     * @param  string  $text
-     * @param  string|null  $url
-     * @return bool
-     */
-    protected function hasLink($text, $url = null)
-    {
-        $links = $this->crawler->selectLink($text);
-
-        if ($links->count() == 0) {
-            return false;
-        }
-
-        // If the URL is null, we assume the developer only wants to find a link
-        // with the given text regardless of the URL. So, if we find the link
-        // we will return true now. Otherwise, we look for the given URL.
-        if ($url == null) {
-            return true;
-        }
-
-        $url = $this->addRootToRelativeUrl($url);
-
-        foreach ($links as $link) {
-            if ($link->getAttribute('href') == $url) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Add a root if the URL is relative (helper method of the hasLink function).
-     *
-     * @param  string  $url
-     * @return string
-     */
-    protected function addRootToRelativeUrl($url)
-    {
-        if (! Str::startsWith($url, ['http', 'https'])) {
-            return $this->app->make('url')->to($url);
-        }
-
-        return $url;
-    }
-
-    /**
-     * Assert that an input field contains the given value.
-     *
-     * @param  string  $selector
-     * @param  string  $expected
-     * @return $this
-     */
-    public function seeInField($selector, $expected)
-    {
-        $this->assertSame(
-            $expected, $this->getInputOrTextAreaValue($selector),
-            "The field [{$selector}] does not contain the expected value [{$expected}]."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that an input field does not contain the given value.
-     *
-     * @param  string  $selector
-     * @param  string  $value
-     * @return $this
-     */
-    public function dontSeeInField($selector, $value)
-    {
-        $this->assertNotSame(
-            $this->getInputOrTextAreaValue($selector), $value,
-            "The input [{$selector}] should not contain the value [{$value}]."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that the given checkbox is selected.
-     *
-     * @param  string  $selector
-     * @return $this
-     */
-    public function seeIsChecked($selector)
-    {
-        $this->assertTrue(
-            $this->isChecked($selector),
-            "The checkbox [{$selector}] is not checked."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that the given checkbox is not selected.
-     *
-     * @param  string  $selector
-     * @return $this
-     */
-    public function dontSeeIsChecked($selector)
-    {
-        $this->assertFalse(
-            $this->isChecked($selector),
-            "The checkbox [{$selector}] is checked."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that the expected value is selected.
-     *
-     * @param  string  $selector
-     * @param  string  $expected
-     * @return $this
-     */
-    public function seeIsSelected($selector, $expected)
-    {
-        $this->assertEquals(
-            $expected, $this->getSelectedValue($selector),
-            "The field [{$selector}] does not contain the selected value [{$expected}]."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Assert that the given value is not selected.
-     *
-     * @param  string  $selector
-     * @param  string  $value
-     * @return $this
-     */
-    public function dontSeeIsSelected($selector, $value)
-    {
-        $this->assertNotEquals(
-            $value, $this->getSelectedValue($selector),
-            "The field [{$selector}] contains the selected value [{$value}]."
-        );
-
-        return $this;
-    }
-
-    /**
-     * Get the value of an input or textarea.
-     *
-     * @param  string  $selector
-     * @return string
-     *
-     * @throws \Exception
-     */
-    protected function getInputOrTextAreaValue($selector)
-    {
-        $field = $this->filterByNameOrId($selector, ['input', 'textarea']);
-
-        if ($field->count() == 0) {
-            throw new Exception("There are no elements with the name or ID [$selector].");
-        }
-
-        $element = $field->nodeName();
-
-        if ($element == 'input') {
-            return $field->attr('value');
-        }
-
-        if ($element == 'textarea') {
-            return $field->text();
-        }
-
-        throw new Exception("Given selector [$selector] is not an input or textarea.");
-    }
-
-    /**
-     * Get the selected value of a select field or radio group.
-     *
-     * @param  string  $selector
-     * @return string|null
-     *
-     * @throws \Exception
-     */
-    protected function getSelectedValue($selector)
-    {
-        $field = $this->filterByNameOrId($selector);
-
-        if ($field->count() == 0) {
-            throw new Exception("There are no elements with the name or ID [$selector].");
-        }
-
-        $element = $field->nodeName();
-
-        if ($element == 'select') {
-            return $this->getSelectedValueFromSelect($field);
-        }
-
-        if ($element == 'input') {
-            return $this->getCheckedValueFromRadioGroup($field);
-        }
-
-        throw new Exception("Given selector [$selector] is not a select or radio group.");
-    }
-
-    /**
-     * Get the selected value from a select field.
-     *
-     * @param  \Symfony\Component\DomCrawler\Crawler  $field
-     * @return string|null
-     *
-     * @throws \Exception
-     */
-    protected function getSelectedValueFromSelect(Crawler $field)
-    {
-        if ($field->nodeName() !== 'select') {
-            throw new Exception('Given element is not a select element.');
-        }
-
-        foreach ($field->children() as $option) {
-            if ($option->hasAttribute('selected')) {
-                return $option->getAttribute('value');
-            }
-        }
-
-        return;
-    }
-
-    /**
-     * Get the checked value from a radio group.
-     *
-     * @param  \Symfony\Component\DomCrawler\Crawler  $radioGroup
-     * @return string|null
-     *
-     * @throws \Exception
-     */
-    protected function getCheckedValueFromRadioGroup(Crawler $radioGroup)
-    {
-        if ($radioGroup->nodeName() !== 'input' || $radioGroup->attr('type') !== 'radio') {
-            throw new Exception('Given element is not a radio button.');
-        }
-
-        foreach ($radioGroup as $radio) {
-            if ($radio->hasAttribute('checked')) {
-                return $radio->getAttribute('value');
-            }
-        }
-
-        return;
-    }
-
-    /**
-     * Return true if the given checkbox is checked, false otherwise.
-     *
-     * @param  string  $selector
-     * @return bool
-     *
-     * @throws \Exception
-     */
-    protected function isChecked($selector)
-    {
-        $checkbox = $this->filterByNameOrId($selector, "input[type='checkbox']");
-
-        if ($checkbox->count() == 0) {
-            throw new Exception("There are no checkbox elements with the name or ID [$selector].");
-        }
-
-        return $checkbox->attr('checked') !== null;
-    }
-
-    /**
      * Click a link with the given body, name, or ID attribute.
      *
-     * @param  string  $name
+     * @param  string $name
      * @return $this
      *
      * @throws \InvalidArgumentException
      */
     protected function click($name)
     {
-        $link = $this->crawler->selectLink($name);
+        $link = $this->crawler()->selectLink($name);
 
-        if (! count($link)) {
+        if (!count($link)) {
             $link = $this->filterByNameOrId($name, 'a');
 
-            if (! count($link)) {
+            if (!count($link)) {
                 throw new InvalidArgumentException(
                     "Could not find a link with a body, name, or ID attribute of [{$name}]."
                 );
@@ -610,15 +355,85 @@ trait InteractsWithPages
     }
 
     /**
+     * Filter elements according to the given name or ID attribute.
+     *
+     * @param  string $name
+     * @param  array|string $elements
+     * @return \Symfony\Component\DomCrawler\Crawler
+     */
+    protected function filterByNameOrId($name, $elements = '*')
+    {
+        $name = str_replace('#', '', $name);
+
+        $id = str_replace(['[', ']'], ['\\[', '\\]'], $name);
+
+        $elements = is_array($elements) ? $elements : [$elements];
+
+        array_walk($elements, function (&$element) use ($name, $id) {
+            $element = "{$element}#{$id}, {$element}[name='{$name}']";
+        });
+
+        return $this->crawler()->filter(implode(', ', $elements));
+    }
+
+    /**
+     * Visit the given URI with a GET request.
+     *
+     * @param  string $uri
+     * @return $this
+     */
+    public function visit($uri)
+    {
+        return $this->makeRequest('GET', $uri);
+    }
+
+    /**
      * Fill an input field with the given text.
      *
-     * @param  string  $text
-     * @param  string  $element
+     * @param  string $text
+     * @param  string $element
      * @return $this
      */
     protected function type($text, $element)
     {
         return $this->storeInput($element, $text);
+    }
+
+    /**
+     * Store a form input in the local array.
+     *
+     * @param  string $element
+     * @param  string $text
+     * @return $this
+     */
+    protected function storeInput($element, $text)
+    {
+        $this->assertFilterProducesResults($element);
+
+        $element = str_replace('#', '', $element);
+
+        $this->inputs[$element] = $text;
+
+        return $this;
+    }
+
+    /**
+     * Assert that a filtered Crawler returns nodes.
+     *
+     * @param  string $filter
+     * @return void
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function assertFilterProducesResults($filter)
+    {
+        $crawler = $this->filterByNameOrId($filter);
+
+        if (!count($crawler)) {
+            throw new InvalidArgumentException(
+                "Nothing matched the filter [{$filter}] CSS query provided for [{$this->currentUri}]."
+            );
+        }
     }
 
     /**
@@ -696,15 +511,159 @@ trait InteractsWithPages
     }
 
     /**
+     * Make a request to the application using the given form.
+     *
+     * @param  \Symfony\Component\DomCrawler\Form $form
+     * @param  array $uploads
+     * @return $this
+     */
+    protected function makeRequestUsingForm(Form $form, array $uploads = [])
+    {
+        $files = $this->convertUploadsForTesting($form, $uploads);
+
+        return $this->makeRequest(
+            $form->getMethod(), $form->getUri(), $this->extractParametersFromForm($form), [], $files
+        );
+    }
+
+    /**
+     * Convert the given uploads to UploadedFile instances.
+     *
+     * @param  \Symfony\Component\DomCrawler\Form $form
+     * @param  array $uploads
+     * @return array
+     */
+    protected function convertUploadsForTesting(Form $form, array $uploads)
+    {
+        $files = $form->getFiles();
+
+        $names = array_keys($files);
+
+        $files = array_map(function (array $file, $name) use ($uploads) {
+            return isset($uploads[$name])
+                ? $this->getUploadedFileForTesting($file, $uploads, $name)
+                : $file;
+        }, $files, $names);
+
+        return array_combine($names, $files);
+    }
+
+    /**
+     * Create an UploadedFile instance for testing.
+     *
+     * @param  array $file
+     * @param  array $uploads
+     * @param  string $name
+     * @return \Illuminate\Http\UploadedFile
+     */
+    protected function getUploadedFileForTesting($file, $uploads, $name)
+    {
+        return new UploadedFile(
+            $file['tmp_name'], basename($uploads[$name]), $file['type'], $file['size'], $file['error'], true
+        );
+    }
+
+    /**
+     * Make a request to the application and create a Crawler instance.
+     *
+     * @param  string $method
+     * @param  string $uri
+     * @param  array $parameters
+     * @param  array $cookies
+     * @param  array $files
+     * @return $this
+     */
+    protected function makeRequest($method, $uri, $parameters = [], $cookies = [], $files = [])
+    {
+        $uri = $this->prepareUrlForRequest($uri);
+
+        $this->call($method, $uri, $parameters, $cookies, $files);
+
+        $this->clearInputs()->followRedirects()->assertPageLoaded($uri);
+
+        $this->currentUri = $this->app->make('request')->fullUrl();
+
+        $this->crawler = new Crawler($this->response->getContent(), $this->currentUri);
+
+        return $this;
+    }
+
+    /**
+     * Assert that a given page successfully loaded.
+     *
+     * @param  string $uri
+     * @param  string|null $message
+     * @return void
+     *
+     * @throws \Illuminate\Foundation\Testing\HttpException
+     */
+    protected function assertPageLoaded($uri, $message = null)
+    {
+        $status = $this->response->getStatusCode();
+
+        try {
+            $this->assertEquals(200, $status);
+        } catch (PHPUnitException $e) {
+            $message = $message ?: "A request to [{$uri}] failed. Received status code [{$status}].";
+
+            $responseException = isset($this->response->exception)
+                ? $this->response->exception : null;
+
+            throw new HttpException($message, null, $responseException);
+        }
+    }
+
+    /**
+     * Follow redirects from the last response.
+     *
+     * @return $this
+     */
+    protected function followRedirects()
+    {
+        while ($this->response->isRedirect()) {
+            $this->makeRequest('GET', $this->response->getTargetUrl());
+        }
+
+        return $this;
+    }
+
+    /**
+     * Clear the inputs for the current page.
+     *
+     * @return $this
+     */
+    protected function clearInputs()
+    {
+        $this->inputs = [];
+
+        $this->uploads = [];
+
+        return $this;
+    }
+
+    /**
+     * Extract the parameters from the given form.
+     *
+     * @param  \Symfony\Component\DomCrawler\Form  $form
+     * @return array
+     */
+    protected function extractParametersFromForm(Form $form)
+    {
+        parse_str(http_build_query($form->getValues()), $parameters);
+
+        return $parameters;
+    }
+
+    /**
      * Fill the form with the given data.
      *
-     * @param  string  $buttonText
-     * @param  array  $inputs
+     * @param  string $buttonText
+     * @param  array $inputs
      * @return \Symfony\Component\DomCrawler\Form
      */
     protected function fillForm($buttonText, $inputs = [])
     {
-        if (! is_string($buttonText)) {
+        if (!is_string($buttonText)) {
             $inputs = $buttonText;
 
             $buttonText = null;
@@ -716,7 +675,7 @@ trait InteractsWithPages
     /**
      * Get the form from the page with the given submit button text.
      *
-     * @param  string|null  $buttonText
+     * @param  string|null $buttonText
      * @return \Symfony\Component\DomCrawler\Form
      *
      * @throws \InvalidArgumentException
@@ -725,110 +684,14 @@ trait InteractsWithPages
     {
         try {
             if ($buttonText) {
-                return $this->crawler->selectButton($buttonText)->form();
+                return $this->crawler()->selectButton($buttonText)->form();
             }
 
-            return $this->crawler->filter('form')->form();
+            return $this->crawler()->filter('form')->form();
         } catch (InvalidArgumentException $e) {
             throw new InvalidArgumentException(
                 "Could not find a form that has submit button [{$buttonText}]."
             );
         }
-    }
-
-    /**
-     * Store a form input in the local array.
-     *
-     * @param  string  $element
-     * @param  string  $text
-     * @return $this
-     */
-    protected function storeInput($element, $text)
-    {
-        $this->assertFilterProducesResults($element);
-
-        $element = str_replace('#', '', $element);
-
-        $this->inputs[$element] = $text;
-
-        return $this;
-    }
-
-    /**
-     * Assert that a filtered Crawler returns nodes.
-     *
-     * @param  string  $filter
-     * @return void
-     *
-     * @throws \InvalidArgumentException
-     */
-    protected function assertFilterProducesResults($filter)
-    {
-        $crawler = $this->filterByNameOrId($filter);
-
-        if (! count($crawler)) {
-            throw new InvalidArgumentException(
-                "Nothing matched the filter [{$filter}] CSS query provided for [{$this->currentUri}]."
-            );
-        }
-    }
-
-    /**
-     * Filter elements according to the given name or ID attribute.
-     *
-     * @param  string  $name
-     * @param  array|string  $elements
-     * @return \Symfony\Component\DomCrawler\Crawler
-     */
-    protected function filterByNameOrId($name, $elements = '*')
-    {
-        $name = str_replace('#', '', $name);
-
-        $id = str_replace(['[', ']'], ['\\[', '\\]'], $name);
-
-        $elements = is_array($elements) ? $elements : [$elements];
-
-        array_walk($elements, function (&$element) use ($name, $id) {
-            $element = "{$element}#{$id}, {$element}[name='{$name}']";
-        });
-
-        return $this->crawler->filter(implode(', ', $elements));
-    }
-
-    /**
-     * Convert the given uploads to UploadedFile instances.
-     *
-     * @param  \Symfony\Component\DomCrawler\Form  $form
-     * @param  array  $uploads
-     * @return array
-     */
-    protected function convertUploadsForTesting(Form $form, array $uploads)
-    {
-        $files = $form->getFiles();
-
-        $names = array_keys($files);
-
-        $files = array_map(function (array $file, $name) use ($uploads) {
-            return isset($uploads[$name])
-                        ? $this->getUploadedFileForTesting($file, $uploads, $name)
-                        : $file;
-        }, $files, $names);
-
-        return array_combine($names, $files);
-    }
-
-    /**
-     * Create an UploadedFile instance for testing.
-     *
-     * @param  array  $file
-     * @param  array  $uploads
-     * @param  string  $name
-     * @return \Symfony\Component\HttpFoundation\File\UploadedFile
-     */
-    protected function getUploadedFileForTesting($file, $uploads, $name)
-    {
-        return new UploadedFile(
-            $file['tmp_name'], basename($uploads[$name]), $file['type'], $file['size'], $file['error'], true
-        );
     }
 }

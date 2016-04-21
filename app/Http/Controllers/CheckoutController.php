@@ -14,6 +14,7 @@ use App\Cart;
 use App\User;
 use App\Contact;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\App;
 
 
 class CheckoutController extends Controller
@@ -89,9 +90,12 @@ class CheckoutController extends Controller
 
             $user->save();
         }
+        $pdf = App::make('dompdf.wrapper');
 
-        return CartHelper::returnItems($data["cart"], true);
+        $pdf->loadView('documents.invoice');
+        return $pdf->stream();
+        //return CartHelper::returnItems($data["cart"], true);
 
-        return $_POST;
+        //return $_POST;
     }
 }

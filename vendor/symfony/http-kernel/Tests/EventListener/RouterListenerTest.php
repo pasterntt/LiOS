@@ -11,7 +11,6 @@
 
 namespace Symfony\Component\HttpKernel\Tests\EventListener;
 
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\EventListener\RouterListener;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -21,11 +20,6 @@ use Symfony\Component\Routing\RequestContext;
 class RouterListenerTest extends \PHPUnit_Framework_TestCase
 {
     private $requestStack;
-
-    protected function setUp()
-    {
-        $this->requestStack = $this->getMock('Symfony\Component\HttpFoundation\RequestStack', array(), array(), '', false);
-    }
 
     /**
      * @dataProvider getPortData
@@ -51,16 +45,6 @@ class RouterListenerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(0 === strpos($uri, 'https') ? 'https' : 'http', $context->getScheme());
     }
 
-    public function getPortData()
-    {
-        return array(
-            array(80, 443, 'http://localhost/', 80, 443),
-            array(80, 443, 'http://localhost:90/', 90, 443),
-            array(80, 443, 'https://localhost/', 80, 443),
-            array(80, 443, 'https://localhost:90/', 80, 90),
-        );
-    }
-
     /**
      * @param string $uri
      *
@@ -73,6 +57,16 @@ class RouterListenerTest extends \PHPUnit_Framework_TestCase
         $request->attributes->set('_controller', null); // Prevents going in to routing process
 
         return new GetResponseEvent($kernel, $request, HttpKernelInterface::MASTER_REQUEST);
+    }
+
+    public function getPortData()
+    {
+        return array(
+            array(80, 443, 'http://localhost/', 80, 443),
+            array(80, 443, 'http://localhost:90/', 90, 443),
+            array(80, 443, 'https://localhost/', 80, 443),
+            array(80, 443, 'https://localhost:90/', 80, 90),
+        );
     }
 
     /**
@@ -112,9 +106,6 @@ class RouterListenerTest extends \PHPUnit_Framework_TestCase
                        ->will($this->returnValue(array()));
 
         $context = new RequestContext();
-        $requestMatcher->expects($this->any())
-                       ->method('getContext')
-                       ->will($this->returnValue($context));
 
         $listener = new RouterListener($requestMatcher, $this->requestStack, new RequestContext());
         $listener->onKernelRequest($event);
@@ -157,5 +148,10 @@ class RouterListenerTest extends \PHPUnit_Framework_TestCase
             array(array('_route' => 'foo'), 'Matched route "foo".'),
             array(array(), 'Matched route "n/a".'),
         );
+    }
+
+    protected function setUp()
+    {
+        $this->requestStack = $this->getMock('Symfony\Component\HttpFoundation\RequestStack', array(), array(), '', false);
     }
 }

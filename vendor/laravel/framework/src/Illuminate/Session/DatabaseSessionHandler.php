@@ -71,20 +71,6 @@ class DatabaseSessionHandler implements SessionHandlerInterface, ExistenceAwareI
     /**
      * {@inheritdoc}
      */
-    public function read($sessionId)
-    {
-        $session = (object) $this->getQuery()->find($sessionId);
-
-        if (isset($session->payload)) {
-            $this->exists = true;
-
-            return base64_decode($session->payload);
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function write($sessionId, $data)
     {
         $payload = $this->getDefaultPayload($data);
@@ -105,7 +91,7 @@ class DatabaseSessionHandler implements SessionHandlerInterface, ExistenceAwareI
     }
 
     /**
-     * Get the default paylaod for the session.
+     * Get the default payload for the session.
      *
      * @param  string  $data
      * @return array
@@ -136,6 +122,30 @@ class DatabaseSessionHandler implements SessionHandlerInterface, ExistenceAwareI
     /**
      * {@inheritdoc}
      */
+    public function read($sessionId)
+    {
+        $session = (object)$this->getQuery()->find($sessionId);
+
+        if (isset($session->payload)) {
+            $this->exists = true;
+
+            return base64_decode($session->payload);
+        }
+    }
+
+    /**
+     * Get a fresh query builder instance for the table.
+     *
+     * @return \Illuminate\Database\Query\Builder
+     */
+    protected function getQuery()
+    {
+        return $this->connection->table($this->table);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function destroy($sessionId)
     {
         $this->getQuery()->where('id', $sessionId)->delete();
@@ -147,16 +157,6 @@ class DatabaseSessionHandler implements SessionHandlerInterface, ExistenceAwareI
     public function gc($lifetime)
     {
         $this->getQuery()->where('last_activity', '<=', time() - $lifetime)->delete();
-    }
-
-    /**
-     * Get a fresh query builder instance for the table.
-     *
-     * @return \Illuminate\Database\Query\Builder
-     */
-    protected function getQuery()
-    {
-        return $this->connection->table($this->table);
     }
 
     /**

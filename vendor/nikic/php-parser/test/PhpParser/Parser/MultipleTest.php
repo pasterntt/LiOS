@@ -13,20 +13,6 @@ require_once __DIR__ . '/../ParserTest.php';
 
 class MultipleTest extends ParserTest {
     // This provider is for the generic parser tests, just pick an arbitrary order here
-    protected function getParser(Lexer $lexer) {
-        return new Multiple([new Php5($lexer), new Php7($lexer)]);
-    }
-
-    private function getPrefer7() {
-        $lexer = new Lexer(['usedAttributes' => []]);
-        return new Multiple([new Php7($lexer), new Php5($lexer)]);
-    }
-
-    private function getPrefer5() {
-        $lexer = new Lexer(['usedAttributes' => []]);
-        return new Multiple([new Php5($lexer), new Php7($lexer)]);
-    }
-
     /** @dataProvider provideTestParse */
     public function testParse($code, Multiple $parser, $expected) {
         $this->assertEquals($expected, $parser->parse($code));
@@ -61,7 +47,7 @@ class MultipleTest extends ParserTest {
                 $this->getPrefer5(),
                 [
                     new Expr\Variable(
-                        new Expr\ArrayDimFetch(new Expr\Variable('a'), new LNumber(0))
+                        new Expr\ArrayDimFetch(new Expr\Variable('a'), LNumber::fromString('0'))
                     )
                 ]
             ],
@@ -71,11 +57,23 @@ class MultipleTest extends ParserTest {
                 $this->getPrefer7(),
                 [
                     new Expr\ArrayDimFetch(
-                        new Expr\Variable(new Expr\Variable('a')), new LNumber(0)
+                        new Expr\Variable(new Expr\Variable('a')), LNumber::fromString('0')
                     )
                 ]
             ],
         ];
+    }
+
+    private function getPrefer5()
+    {
+        $lexer = new Lexer(['usedAttributes' => []]);
+        return new Multiple([new Php5($lexer), new Php7($lexer)]);
+    }
+
+    private function getPrefer7()
+    {
+        $lexer = new Lexer(['usedAttributes' => []]);
+        return new Multiple([new Php7($lexer), new Php5($lexer)]);
     }
 
     public function testThrownError() {
@@ -109,5 +107,10 @@ class MultipleTest extends ParserTest {
         $parser = new Multiple([$parserA, $parserB]);
         $parser->parse('dummy');
         $this->assertSame($errorsA, $parser->getErrors());
+    }
+
+    protected function getParser(Lexer $lexer)
+    {
+        return new Multiple([new Php5($lexer), new Php7($lexer)]);
     }
 }
