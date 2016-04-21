@@ -31,11 +31,13 @@ class CartController extends Controller
             $cart->created = time();
             $cart->key = md5(time().microtime(TRUE));
             $cart->status = 0;
-            $items[] = [];
+            $items = [];
             $cart->items = json_encode($items);
 
             $cart->save();
         }
+
+        //todo: Prevent old cart from loading if status != 0
 
         $cart = $cart->first();
         if(!$cart)
@@ -69,6 +71,7 @@ class CartController extends Controller
                 }
 
         }
+        if (count($cart_items) == 0) $cart_items = [];
         return view('dashboard.shop.cart', ['page'=>'shop.cart', 'sub'=>'shop', 'breadcrumbs'=>[
                 [
                     'title'=>'shop.overview',

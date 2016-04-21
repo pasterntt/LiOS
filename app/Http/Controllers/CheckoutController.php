@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Helpers\CartHelper;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
@@ -13,6 +14,7 @@ use App\Cart;
 use App\User;
 use App\Contact;
 use Illuminate\Support\Facades\Crypt;
+
 
 class CheckoutController extends Controller
 {
@@ -29,32 +31,31 @@ class CheckoutController extends Controller
         $cart_items = [];
         $items = json_decode($cart->items, true);
         $total = 0;
-        foreach($items as $item)
-        {
-            $product = @DB::table('shop_items')->where('id', $item['product_id'])->first();
-            if(!$product)
-                $this->delete($item['id']);
-            else
-            {
-                $datacenter = @DB::table('servers_datacenters')->where('id', $item['datacenter'])->first();
-                if(!$datacenter)
-                    $this->delete();
-                else
-                {
-                    $price = ($product->price*(1-($product->discount/100)))*(1+($datacenter->additional/100));
-                    $cart_items[] = [
-                        'id'=>$item['id'],
-                        'name'=>$item['name'],
-                        'description'=> substr(json_decode($product->description, true)['description'], 0, 100),
-                        'price'=>number_format(round($price,2),2),
-                        'datacenter' => $datacenter
+        if (count($items) > 0) {
+            foreach ($items as $item) {
+                $product = @DB::table('shop_items')->where('id', $item['product_id'])->first();
+                if (!$product)
+                    $this->delete($item['id']);
+                else {
+                    $datacenter = @DB::table('servers_datacenters')->where('id', $item['datacenter'])->first();
+                    if (!$datacenter)
+                        $this->delete();
+                    else {
+                        $price = ($product->price * (1 - ($product->discount / 100))) * (1 + ($datacenter->additional / 100));
+                        $cart_items[] = [
+                            'id' => $item['id'],
+                            'name' => $item['name'],
+                            'description' => substr(json_decode($product->description, true)['description'], 0, 100),
+                            'price' => number_format(round($price, 2), 2),
+                            'datacenter' => $datacenter
 
-                    ];
-                    $total = $total+$price;
+                        ];
+                        $total = $total + $price;
+                    }
+
                 }
 
             }
-
         }
         return view('dashboard.checkout.step1',['page'=>'checkout.step1', 'sub'=>'shop', 'breadcrumbs'=>[
             [
@@ -88,6 +89,8 @@ class CheckoutController extends Controller
 
             $user->save();
         }
+
+        return CartHelper::returnItems($data["cart"], true);
 
         return $_POST;
     }
