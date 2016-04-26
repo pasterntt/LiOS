@@ -254,7 +254,7 @@
                         hideMethod: 'fadeOut',
                         timeOut: 5000
                     };
-                    toastr.success('Item added successfully!', 'Item added!');
+                    toastr.success('{{session("head")}}', '{{session("body")}}');
                 }, 1800);
         });
     </script>
@@ -270,10 +270,11 @@
                     hideMethod: 'fadeOut',
                     timeOut: 5000
                 };
-                toastr.error('Item removed successfully!', 'Item removed!');
+                toastr.error('{{session("head")}}', '{{session("body")}}');
             }, 1800);
         });
     </script>
 @endif
+
 </body>
 </html>

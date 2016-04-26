@@ -54,7 +54,7 @@ return [
     |
     */
 
-    'from' => ['address' => null, 'name' => null],
+    'from' => ['address' => "support@lio-script.de", 'name' => "LiOS Support"],
 
     /*
     |--------------------------------------------------------------------------

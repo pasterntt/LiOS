@@ -16,6 +16,7 @@ use App\User;
 use App\Contact;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Session;
 
 
 class CheckoutController extends Controller
@@ -94,14 +95,14 @@ class CheckoutController extends Controller
         } else
             $contact = $data["chooseContact"];
 
-        return InvoiceController::generateFirstInvoice(CartHelper::returnItems($data["cart"], true), Auth::user()->id, time() + 14 * 24 * 60 * 60, $contact, time());
-        $pdf = App::make('dompdf.wrapper');
+        CartHelper::finishCart($data['cart']);
+        InvoiceController::generateFirstInvoice(CartHelper::returnItems($data["cart"], true), Auth::user()->id, time() + 14 * 24 * 60 * 60, $contact, time());
+        Session::flash('success', true);
+        Session::flash('heading', trans('invoice.new'));
+        Session::flash('body', trans('invoice.please-pay'));
 
-        $pdf->loadView('documents.invoice');
-        return $pdf->stream();
-        //return CartHelper::returnItems($data["cart"], true);
+        return Redirect::to('/dashboard');
 
-        //return $_POST;
     }
 }
 

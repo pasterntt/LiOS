@@ -12,6 +12,12 @@ use App\Contact;
 use App;
 use App\Http\Controllers\Helpers\NotificationHelper;
 use Illuminate\Support\Facades\URL;
+use App\Invoice;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
+use App\User;
+use Illuminate\Support\Facades\Mail;
+
 class InvoiceController extends Controller
 {
 
@@ -40,10 +46,39 @@ class InvoiceController extends Controller
         $contact = Contact::where('read_id', $contact)->where('owner', $client)->first();
         if (!$contact) return false;
 
+        $total = 0;
+
+        $invoice = new Invoice;
+
+        $invoice->created = time();
+        $invoice->due = $duedate;
+        $invoice->amount = $total;
+        $invoice->owner = $client;
+        $invoice->contact = Crypt::encrypt(json_encode($contact, 1));
+        $invoice->items = Crypt::encrypt(json_encode($items, 1));
+
+        $invoice->recurring = 1;
+
+        $invoice->save();
+
+
+
         $pdf = App::make('dompdf.wrapper');
 
         $pdf->loadView('documents.invoice', ['client' => $contact, 'items' => $items, 'created' => $creation, "due" => $duedate, "copy" => false]);
-        return $pdf->download();
+        $file = "invoices/" . date("d-m-Y") . "/" . md5(time() . $client) . ".pdf";
+        Storage::put($file, $pdf->output());
+
+        $client = User::findOrFail($client);
+        Mail::send('emails.invoice', ['user' => $client, "creation" => $creation, "duedate" => $duedate, "total" => $items["total"]], function ($m) use ($client, $file) {
+
+            $m->to($client->email, $client->name)->subject(trans("invoice.new"));
+            $m->attach(storage_path("app") . "/" . $file);
+
+        });
+        Storage::delete($file);
+
+        return true;
     }
     
 

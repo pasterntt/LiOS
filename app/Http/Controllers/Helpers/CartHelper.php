@@ -46,10 +46,15 @@ class CartHelper extends Controller
 
         }
 
-        if ($returnTotal) return ["items" => $cart_items, "total" => $total];
+        if ($returnTotal) return ["items" => $cart_items, "total" => number_format(round($total, 2), 2)];
         else return ["items" => $cart_items];
 
 
+    }
+
+    static function finishCart($cart)
+    {
+        return Cart::where('key', $cart)->update(["status" => 1]);
     }
 
 

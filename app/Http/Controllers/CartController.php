@@ -36,12 +36,12 @@ class CartController extends Controller
 
             $cart->save();
         }
-
-        //todo: Prevent old cart from loading if status != 0
+        $cart_items = [];
 
         $cart = $cart->first();
         if(!$cart)
         $cart_items = [];
+        $items = [];
         $items = json_decode($cart->items, true);
         $total = 0;
         foreach($items as $item)
@@ -87,9 +87,13 @@ class CartController extends Controller
     }
 
 
-
+    /**
+     * @todo: Check why items are sent to /dev/null (compare Issue #1)
+     * @return mixed
+     */
     public function postAdd()
     {
+
 
         $input = Input::all();
 
@@ -113,7 +117,7 @@ class CartController extends Controller
 
         for($i = 1; $i<=$input['amount']; $i++)
         {
-            if(Cart::where('selected', 1)->where('owner', Auth::user()->id)->count() >0)
+            if (Cart::where('selected', 1)->where('owner', Auth::user()->id)->where('status', 0)->count() > 0)
             {
                 $cart = Cart::findOrFail(Cart::where('selected', 1)->where('owner', Auth::user()->id)->first()->id);
                 $items = json_decode($cart->items, true);
@@ -126,7 +130,6 @@ class CartController extends Controller
                 ];
                 $cart->items = json_encode($items);
                 $cart->save();
-
             }else{
 
                 $cart = new Cart;
@@ -161,6 +164,7 @@ class CartController extends Controller
     private function success()
     {
         Session::flash('success', 'shop.cart.items.added');
+        Session::flash('head', 'shop.cart.items.added');
         return redirect(URL::to('cart'));
     }
 
