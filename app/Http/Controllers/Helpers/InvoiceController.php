@@ -13,14 +13,17 @@ use App\Contact;
 class InvoiceController extends Controller
 {
 
+
     /**
      * @param $items
      * @param $client
-     * @param $duetime
+     * @param $duedate
      * @param $contact
+     * @param $creation
+     * @param bool $copy
      * @return bool
      */
-    static function createInvoice($items, $client, $duetime, $contact)
+    static function createInvoice($items, $client, $duedate, $contact, $creation, $copy = true)
     {
         $contact = Contact::where('read_id', $contact)->where('owner', $client)->first();
         if (!$contact) return false;

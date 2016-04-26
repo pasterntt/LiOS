@@ -62,7 +62,7 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <h3>@lang('checkout.choosecontact')</h3>
-                                                <select class="form-control" name="chooseContact">
+                                                <select class="form-control" id="chooseContact" name="chooseContact">
                                                     <option value="0">@lang('checkout.chooseconselect')</option>
                                                     @foreach(Contacts::where('owner', Auth::user()->id)->get() as $contact)
                                                         <option value="{{$contact->read_id}}">#{{$contact->read_id}} - {{$contact->first}} {{$contact->last}} </option>
