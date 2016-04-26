@@ -55,9 +55,7 @@
                                                         <label for="exampleInputPassword2">@lang('checkout.country')</label>
                                                         <input type="text" class="form-control" name="orderCountry" id="orderCountry" placeholder="@lang('checkout.country')">
                                                     </div>
-                                                    <div class="form-group col-md-12">
-                                                        <label><input type="checkbox" name="saveValue">@lang('checkout.createnewcontact') </label>
-                                                    </div>
+
                                                 </div>
                                             </div>
                                             <div class="col-md-6">

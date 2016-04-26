@@ -1,7 +1,7 @@
-@extends('documents.blanko', ['creation'=>"1.1.1970"])
+@extends('documents.blanko', ['creation'=>date("d.m.Y", $created), "copy"=>$copy])
 
 @section('content')
 
-    <h1>@lang('document.about'): @lang('documets.types.invoice')</h1>
+    <h1>@lang('documents.about') @lang('documents.types.invoice')</h1>
 
 @stop

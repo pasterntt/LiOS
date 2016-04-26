@@ -19,6 +19,12 @@
         h1 {
             font-size: 22px;
         }
+
+        .copy {
+            font-size: 30px;
+            color: red;
+            padding-left: 3px;
+        }
     </style>
 </head>
 <body>
@@ -32,8 +38,11 @@
                 04209 Leipzig<br>
                 GERMANY</p>
         </td>
-        <td width="25%">
+        <td style="width: 25%;">
             <p><b>@lang('documents.date'):</b> {{$creation}}</p>
+            @if(!empty($copy) && $copy)
+                <h1 class="copy">@lang('documents.copy')</h1>
+            @endif
         </td>
     </tr>
 </table>

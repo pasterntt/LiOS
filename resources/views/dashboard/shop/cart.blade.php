@@ -28,7 +28,8 @@
                                     <td>{{$cart_item['name']}}</td>
                                     <td>{{$cart_item['datacenter']->name}} ({{$cart_item['datacenter']->city}},{{$cart_item['datacenter']->country}})</td>
                                     <td>{{$cart_item['price']}}€</td>
-                                    <td><a href="{{URL::to('cart/delete/'.$cart_item['id'])}}" class="btn btn-danger btn-xs">@lang('shop.cart.products.remove') </a> </td>
+                                    <td><a href="{{URL::to('cart/delete/'.$cart_item['id'])}}"
+                                           class="btn btn-danger btn-xs">@lang('shop.cart.product.remove') </a></td>
                                 </tr>
                             @endforeach
                         </tbody>

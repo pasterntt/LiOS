@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\CartHelper;
+use App\Http\Controllers\Helpers\InvoiceController;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
@@ -74,7 +75,7 @@ class CheckoutController extends Controller
 
         $data = $_POST;
 
-        if(!empty($data['saveValue']) && $data['saveValue'] === "on" && $data["chooseContact"] === 0)
+        if (!empty($data['saveValue']) && $data["chooseContact"] === 0)
         {
             $user = new Contact;
 
@@ -89,7 +90,11 @@ class CheckoutController extends Controller
             $user->owner = Auth::user()->id;
 
             $user->save();
-        }
+            $contact = $user;
+        } else
+            $contact = $data["chooseContact"];
+
+        return InvoiceController::generateFirstInvoice(CartHelper::returnItems($data["cart"], true), Auth::user()->id, time() + 14 * 24 * 60 * 60, $contact, time());
         $pdf = App::make('dompdf.wrapper');
 
         $pdf->loadView('documents.invoice');

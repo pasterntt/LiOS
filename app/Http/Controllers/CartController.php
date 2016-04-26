@@ -72,12 +72,12 @@ class CartController extends Controller
 
         }
         if (count($cart_items) == 0) $cart_items = [];
-        return view('dashboard.shop.cart', ['page'=>'shop.cart', 'sub'=>'shop', 'breadcrumbs'=>[
+        return view('dashboard.shop.cart', ['page' => 'shop.cart.title', 'sub' => 'shop', 'breadcrumbs' => [
                 [
                     'title'=>'shop.overview',
                     'url'=>'/shop'
                 ],            [
-                    'title'=>'shop.cart',
+                'title' => 'shop.cart.title',
                     'url'=>'/cart'
                 ],
             ],
