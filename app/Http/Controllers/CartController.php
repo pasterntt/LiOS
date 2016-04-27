@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Helpers\CartHelper;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
@@ -88,77 +89,20 @@ class CartController extends Controller
 
 
     /**
-     * @todo: Check why items are sent to /dev/null (compare Issue #1)
      * @return mixed
      */
     public function postAdd()
     {
-
-
         $input = Input::all();
 
-        $product = DB::table('shop_items')->where('id', $input['product'])->first();
-
-        $datacenter = (array) DB::table('servers_datacenters')->where('id', $input['datacenter'])->first();
-
-            if(!$datacenter[$product->type])
-                return $this->error();
-
-        $avail_months = json_decode($product->leasetimes, true);
-        $month = false;
-
-        foreach($avail_months as $avail_month)
-        {
-            if($avail_month['months'] == $input['month'])
-                $month = true;
-        }
-        if(!$month)
-            return $this->error();
-
-        for($i = 1; $i<=$input['amount']; $i++)
-        {
-            if (Cart::where('selected', 1)->where('owner', Auth::user()->id)->where('status', 0)->count() > 0)
-            {
-                $cart = Cart::findOrFail(Cart::where('selected', 1)->where('owner', Auth::user()->id)->first()->id);
-                $items = json_decode($cart->items, true);
-                $items[] = [
-                    'id'=>count($items)+1,
-                    'product_id'=>$product->id,
-                    'name'=>$product->title,
-                    'runtime'=>$input['month'],
-                    'datacenter'=>$input['datacenter']
-                ];
-                $cart->items = json_encode($items);
-                $cart->save();
-            }else{
-
-                $cart = new Cart;
-                $cart->owner = Auth::user()->id;
-                $cart->selected = 1;
-                $items[] = [
-                    'id'=>1,
-                    'product_id'=>$product->id,
-                    'name'=>$product->title,
-                    'runtime'=>$input['month'],
-                    'datacenter'=>$input['datacenter']
-                ];
-                $cart->items = json_encode($items);
-                $cart->created = time();
-                $cart->key = md5(time().microtime(TRUE));
-                $cart->status = 0;
-
-                $cart->save();
-
-        }
-
-        }
+        CartHelper::AddItemToCart(
+            $input['product'],
+            $input['month'],
+            Auth::user()->id,
+            $input['amount'],
+            $input['datacenter']
+        );
         return $this->success();
-    }
-
-    private function error()
-    {
-        Session::flash('fail', 'shop.cart.items.failed');
-        return redirect(URL::to('cart'));
     }
 
     private function success()
@@ -176,6 +120,12 @@ class CartController extends Controller
         $cart->items = json_encode($items);
         $cart->save();
         Session::flash('fail', 'shop.cart.items.removed');
+        return redirect(URL::to('cart'));
+    }
+
+    private function error()
+    {
+        Session::flash('fail', 'shop.cart.items.failed');
         return redirect(URL::to('cart'));
     }
 }
