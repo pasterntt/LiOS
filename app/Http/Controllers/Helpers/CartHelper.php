@@ -72,7 +72,6 @@ class CartHelper extends Controller
         $decoded = json_decode($items, true);
         for ($i = 1; $i <= $amount; $i++) {
             $decoded[] = [
-                'id' => count($items) + 1,
                 'product_id' => $product->id,
                 'name' => $product->title,
                 'runtime' => $leasetime,
@@ -117,5 +116,22 @@ class CartHelper extends Controller
         $cart->save();
 
         return $cart;
+    }
+
+    static function deleteItemFromCart($cart, $item_id)
+    {
+        $cart = self::getCart($cart);
+        $items = json_decode($cart->items, true);
+        array_forget($items, $item_id);
+        $cart->items = json_encode(array_values($items));
+        $cart->save();
+        return $items;
+        return 1;
+
+    }
+
+    static function getCart($id)
+    {
+        return Cart::findOrFail($id);
     }
 }

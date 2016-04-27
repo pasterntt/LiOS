@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\CartHelper;
+use App\Http\Controllers\Helpers\NotificationHelper;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
@@ -59,7 +60,6 @@ class CartController extends Controller
                         {
                             $price = ($product->price*(1-($product->discount/100)))*(1+($datacenter->additional/100));
                             $cart_items[] = [
-                                'id'=>$item['id'],
                                 'name'=>$item['name'],
                                 'description'=> substr(json_decode($product->description, true)['description'], 0, 100),
                                 'price'=>number_format(round($price,2),2),
@@ -114,12 +114,8 @@ class CartController extends Controller
 
     public function get_delete($id)
     {
-        $cart = Cart::findOrFail(Cart::where('selected', 1)->where('owner', Auth::user()->id)->first()->id);
-        $items = json_decode($cart->items, true);
-        array_forget($items, $id-1);
-        $cart->items = json_encode($items);
-        $cart->save();
-        Session::flash('fail', 'shop.cart.items.removed');
+        CartHelper::deleteItemFromCart(CartHelper::getActiveCart(Auth::user()->id), $id);
+        NotificationHelper::success("cart.item-removed", "");
         return redirect(URL::to('cart'));
     }
 

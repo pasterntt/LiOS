@@ -23,12 +23,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($cart_items as $cart_item)
+                        @foreach($cart_items as $key=>$cart_item)
                                 <tr>
                                     <td>{{$cart_item['name']}}</td>
                                     <td>{{$cart_item['datacenter']->name}} ({{$cart_item['datacenter']->city}},{{$cart_item['datacenter']->country}})</td>
                                     <td>{{$cart_item['price']}}€</td>
-                                    <td><a href="{{URL::to('cart/delete/'.$cart_item['id'])}}"
+                                    <td><a href="{{URL::to('cart/delete/'.$key)}}"
                                            class="btn btn-danger btn-xs">@lang('shop.cart.product.remove') </a></td>
                                 </tr>
                             @endforeach
