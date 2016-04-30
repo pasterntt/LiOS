@@ -38,9 +38,6 @@ Route::group(['middleware' => ['web']], function () {
         'virtual' => 'VirtualController',
 
     ]);
-    Route::get('fremdlogin', function () {
-        Auth::login(App\User::findOrFail(3));
-    });
     Route::get('getstatus/{id}', 'VirtualController@getVPSStatus');
     Route::get('/', function () {
         return view('landing.index');
