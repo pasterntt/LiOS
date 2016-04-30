@@ -70,6 +70,7 @@ class InvoiceController extends Controller
         Storage::put($file, $pdf->output());
 
         $client = User::findOrFail($client);
+
         Mail::send('emails.invoice', ['user' => $client, "creation" => $creation, "duedate" => $duedate, "total" => $items["total"]], function ($m) use ($client, $file) {
 
             $m->to($client->email, $client->name)->subject(trans("invoice.new"));

@@ -46,7 +46,6 @@ class CheckoutController extends Controller
                     else {
                         $price = ($product->price * (1 - ($product->discount / 100))) * (1 + ($datacenter->additional / 100));
                         $cart_items[] = [
-                            'id' => $item['id'],
                             'name' => $item['name'],
                             'description' => substr(json_decode($product->description, true)['description'], 0, 100),
                             'price' => number_format(round($price, 2), 2),
@@ -76,7 +75,7 @@ class CheckoutController extends Controller
 
         $data = $_POST;
 
-        if (!empty($data['saveValue']) && $data["chooseContact"] === 0)
+        if ($data["chooseContact"] == 0)
         {
             $user = new Contact;
 

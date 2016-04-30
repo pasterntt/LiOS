@@ -48,7 +48,7 @@
                         <div class="panel-body">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <a href="index.html" class="logo-name text-lg">{{env('PAGENAME')}}</a>
+                                    <a href="{{URL::to('')}}" class="logo-name text-lg">{{env('PAGENAME')}}</a>
                                     <p class="m-t-md">@lang('auth.login.description')</p>
                                     <p class="m-t-xs text-sm">{{date('Y')}} &copy; {{env('PAGENAME')}}.</p>
                                 </div>

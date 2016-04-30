@@ -3,7 +3,7 @@
         <ul class="menu accordion-menu">
             <li class="nav-heading"><span>Navigation</span></li>
             <li class="active"><a href="{{URL::to('dashboard')}}"><span class="menu-icon icon-speedometer"></span><p>@lang('navigation.dashboard')</p></a></li>
-            <li><a href="{{URL::to('profile')}}"><span class="menu-icon icon-user"></span><p>@lang('navigation.profile')</p></a></li>
+
             <li data-menu="#">
                 <a href="{{URL::to('virtual')}}">
                         <span>
@@ -28,11 +28,9 @@
                     <p>@lang('navigation.shop')</p>
                 </a>
             </li>
-            <li data-menu="profile">
+            <li>
                 <a href="{{URL::to('profile')}}">
-                        <span>
-                            <i class="glyphicon glyphicon-user"></i>
-                        </span>
+                    <span class="menu-icon icon-user"></span>
                     <p>@lang('navigation.profile')</p>
                 </a>
             </li>

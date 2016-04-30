@@ -11,5 +11,6 @@ return [
     "due-date" => "Fällig",
     "total" => "Summe",
     "new" => "Eine neue Rechnung wurde erstellt",
-    "pay-in-2-weeks" => "Die Rechnung ist innerhalb der nächsten 2 (zwei) Wochen zu begleichen!"
+    "pay-in-2-weeks" => "Die Rechnung ist innerhalb der nächsten 2 (zwei) Wochen zu begleichen!",
+    'invoice.please-pay' => 'Bitte zahlen Sie Ihre Rechnung innerhalb der nächsten 2 Wochen!'
 ];

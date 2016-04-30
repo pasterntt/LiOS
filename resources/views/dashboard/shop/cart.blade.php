@@ -45,7 +45,12 @@
                         <h4 class="no-m m-t-md text-success">@lang('shop.cart.total')</h4>
                         <h1 class="no-m text-success">{{$total}}€</h1>
                         <br>
-                        <a href="checkout/" class="btn btn-primary">@lang('shop.order')</a>
+                        @if(count($cart_items) >0)
+                            <a href="checkout/" class="btn btn-primary">@lang('shop.order')</a>
+                        @else
+                            <a href="#" class="btn btn-primary disabled">@lang('shop.order')</a>
+                        @endif
+
                     </div>
                 </div>
             </div>

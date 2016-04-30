@@ -33,10 +33,10 @@
         <td style="width: 75%;">
             <p class="from">{{env("FROM_NAME")}} | {{env("FROM_ADRESS")}}</p>
             <p><b>To:</b><br>
-                Tim Pasternak<br>
-                Mannheimer Str. 132<br>
-                04209 Leipzig<br>
-                GERMANY</p>
+                {{$contact->first}}  {{$contact->last}}<br>
+                {{Crypt::decrypt($contact->street)}} {{Crypt::decrypt($contact->number)}}<br>
+                {{Crypt::decrypt($contact->city)}}<br>
+                {{Crypt::decrypt($contact->country)}}</p>
         </td>
         <td style="width: 25%;">
             <p><b>@lang('documents.date'):</b> {{$creation}}</p>

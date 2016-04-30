@@ -1,4 +1,4 @@
-@extends('documents.blanko', ['creation'=>date("d.m.Y", $created), "copy"=>$copy])
+@extends('documents.blanko', ['creation'=>date("d.m.Y", $created), "copy"=>$copy, "contact"=>$client])
 
 @section('content')
 

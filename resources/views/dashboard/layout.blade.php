@@ -77,7 +77,8 @@
                             </a>
                             <ul class="dropdown-menu title-caret dropdown-lg" role="menu">
                                 @if(count($notifications)<1)
-                                <li><p class="drop-title" style="text-align: center;">@lang('notifications.none')</p></li>
+                                    <li><p class="drop-title" style="text-align: center;">@lang('notification.none')</p>
+                                    </li>
                                 @endif
                                 <li class="dropdown-menu-list slimscroll tasks">
                                     <ul class="list-unstyled">
@@ -86,11 +87,12 @@
                                             <a href="#">
                                                 <div class="task-icon badge badge-{{$notification->type}}"><i class="icon-user"></i></div>
                                                 <span class="badge badge-roundless badge-default pull-right">{{date('H:i', $notification->time)}}</span>
-                                                <p class="task-details">{{$notification->content}}</p>
+                                                <p class="task-details">@lang($notification->content)</p>
                                             </a>
                                         </li>
                                         @endforeach
-                                            <li class="drop-all"><a href="#" class="text-center" id="mark-all">@lang('notifications.read')</a></li>
+                                        <li class="drop-all"><a href="#" class="text-center"
+                                                                id="mark-all">@lang('notification.read')</a></li>
                                     </ul>
                                 </li>
                             </ul>

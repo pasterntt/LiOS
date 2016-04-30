@@ -28,40 +28,50 @@
                                                     <h3>@lang('checkout.createcontact')</h3>
                                                     {{csrf_field()}}
                                                     <div class="form-group col-md-6">
-                                                        <label for="exampleInputName">@lang('checkout.firstname')</label>
-                                                        <input type="text" class="form-control" name="orderFirstname" id="orderFirstname" placeholder="@lang('checkout.firstname')" value="">
+                                                        <label for="exampleInputName">@lang('forms.firstname')</label>
+                                                        <input type="text" class="form-control" name="orderFirstname"
+                                                               id="orderFirstname"
+                                                               placeholder="@lang('forms.firstname')" value="">
                                                     </div>
                                                     <div class="form-group  col-md-6">
-                                                        <label for="exampleInputName2">@lang('checkout.lastname')</label>
-                                                        <input type="text" class="form-control col-md-6" name="orderLastname" id="orderLastname" placeholder="@lang('checkout.lastname')" value="">
+                                                        <label for="exampleInputName2">@lang('forms.lastname')</label>
+                                                        <input type="text" class="form-control col-md-6"
+                                                               name="orderLastname" id="orderLastname"
+                                                               placeholder="@lang('forms.lastname')" value="">
                                                     </div>
                                                     <div class="form-group col-md-8">
-                                                        <label for="exampleInputEmail">@lang('checkout.street')</label>
-                                                        <input type="text" class="form-control" name="orderStreet" id="orderStreet" placeholder="@lang('checkout.street')" >
+                                                        <label for="exampleInputEmail">@lang('forms.street')</label>
+                                                        <input type="text" class="form-control" name="orderStreet"
+                                                               id="orderStreet" placeholder="@lang('forms.street')">
                                                     </div>
                                                     <div class="form-group col-md-4">
-                                                        <label for="exampleInputEmail">@lang('checkout.streetnumber')</label>
-                                                        <input type="text" class="form-control" name="orderStreetnumber" id="orderStreetnumber" placeholder="@lang('checkout.streetnumber')" >
+                                                        <label for="exampleInputEmail">@lang('forms.streetnumber')</label>
+                                                        <input type="text" class="form-control" name="orderStreetnumber"
+                                                               id="orderStreetnumber"
+                                                               placeholder="@lang('forms.streetnumber')">
                                                     </div>
                                                     <div class="form-group col-md-4">
-                                                        <label for="exampleInputPassword1">@lang('checkout.zip')</label>
-                                                        <input type="text" class="form-control" name="orderZIP" id="orderZIP" placeholder="@lang('checkout.zip')" >
+                                                        <label for="exampleInputPassword1">@lang('forms.zip')</label>
+                                                        <input type="text" class="form-control" name="orderZIP"
+                                                               id="orderZIP" placeholder="@lang('forms.zip')">
                                                     </div>
                                                     <div class="form-group col-md-8">
-                                                        <label for="exampleInputPassword1">@lang('checkout.city')</label>
-                                                        <input type="text" class="form-control" name="orderCity" id="orderCity" placeholder="@lang('checkout.city')" >
+                                                        <label for="exampleInputPassword1">@lang('forms.city')</label>
+                                                        <input type="text" class="form-control" name="orderCity"
+                                                               id="orderCity" placeholder="@lang('forms.city')">
                                                     </div>
                                                     <div class="form-group col-md-12">
-                                                        <label for="exampleInputPassword2">@lang('checkout.country')</label>
-                                                        <input type="text" class="form-control" name="orderCountry" id="orderCountry" placeholder="@lang('checkout.country')">
+                                                        <label for="exampleInputPassword2">@lang('forms.country')</label>
+                                                        <input type="text" class="form-control" name="orderCountry"
+                                                               id="orderCountry" placeholder="@lang('forms.country')">
                                                     </div>
 
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
-                                                <h3>@lang('checkout.choosecontact')</h3>
+                                                <h3>@lang('forms.choosecontact')</h3>
                                                 <select class="form-control" id="chooseContact" name="chooseContact">
-                                                    <option value="0">@lang('checkout.chooseconselect')</option>
+                                                    <option value="0">@lang('forms.choosecontact')</option>
                                                     @foreach(Contacts::where('owner', Auth::user()->id)->get() as $contact)
                                                         <option value="{{$contact->read_id}}">#{{$contact->read_id}} - {{$contact->first}} {{$contact->last}} </option>
                                                     @endforeach
@@ -117,15 +127,17 @@
                                                     <h4 class="no-m m-t-md text-success">@lang('shop.cart.total')</h4>
                                                     <h1 class="no-m text-success">{{$total}}€</h1>
                                                     <br>
-                                                    <a href="checkout/" class="btn btn-primary">@lang('shop.order')</a>
-                                                    <input type="submit" class="btn btn-success btn-lg" value="@lang('checkout.submit')">
+                                                    <input type="submit" class="btn btn-success btn-lg"
+                                                           value="@lang('forms.submit')">
 
                                             </div>
                                         </div>
                                     </div>
                                     <ul class="pager wizard">
-                                        <li class="previous"><a href="#" class="btn btn-default">@lang('checkout.previous')</a></li>
-                                        <li class="next"><a href="#" class="btn btn-default">@lang('checkout.next')</a></li>
+                                        <li class="previous"><a href="#"
+                                                                class="btn btn-default">@lang('forms.previous')</a></li>
+                                        <li class="next"><a href="#" class="btn btn-default">@lang('forms.next')</a>
+                                        </li>
                                     </ul>
                                 </div>
                             </form>

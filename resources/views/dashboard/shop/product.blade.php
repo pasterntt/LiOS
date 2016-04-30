@@ -49,7 +49,8 @@
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="panel panel-white" data-spy="affix" data-offset-top="60">
+            <div class="panel panel-white">
+                <!--<div class="panel panel-white" data-spy="affix" data-offset-top="60">-->
                 <div class="panel-body">
                     <p class="no-s"><h3>@lang('shop.products.buy_item')</h3></p>
                     <hr>

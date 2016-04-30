@@ -35,7 +35,6 @@ class CartHelper extends Controller
             if ($datacenter) {
                 $price = ($product->price * (1 - ($product->discount / 100))) * (1 + ($datacenter->additional / 100));
                 $cart_items[] = [
-                    'id' => $item['id'],
                     'name' => $item['name'],
                     'description' => substr(json_decode($product->description, true)['description'], 0, 100),
                     'price' => number_format(round($price, 2), 2),
