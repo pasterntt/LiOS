@@ -22,10 +22,16 @@ class CartHelper extends Controller
     {
         $cart = Cart::where('key', $cart_id);
         if ($cart->count() == 0) {
-            return [];
+            return [
+                "items" => [],
+                "total" => 0
+            ];
         }
 
         $details = $cart->first();
+
+        $cart_items = [];
+        $total = 0;
 
         $items = json_decode($details->items, true);
         if ($returnTotal) $total = 0;

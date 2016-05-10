@@ -23,7 +23,8 @@ return [
         'months' => 'Monate(e)',
         "about" => "Über das Produkt",
         "description" => "Beschreibung",
-        "details" => "Technische Einzelheiten"
+        "details" => "Technische Einzelheiten",
+        "inactive" => "Dieses Produkt ist leider nicht mehr vorhanden und wurde aus dem Shop entfernt."
     ],
     'regular' => 'Normaler Preis',
     'discount' => 'Store-Discount',
@@ -39,10 +40,12 @@ return [
             "actions" => "Aktionen",
             "remove" => "Aus dem Warenkorb entfernen",
 
+
         ],
         "excl_tax" => "ohne Steuern",
         "tax" => "Steuern",
         "total" => "Summe"
     ],
-    "order" => "Bestellen"
+    "order" => "Bestellen",
+    "nothing_available" => "Momentan ist leider kein Angebot vorhanden. Versuchen Sie es bitte später erneut."
 ];
