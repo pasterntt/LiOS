@@ -44,7 +44,8 @@ class CartHelper extends Controller
                     'name' => $item['name'],
                     'description' => substr(json_decode($product->description, true)['description'], 0, 100),
                     'price' => number_format(round($price, 2), 2),
-                    'datacenter' => $datacenter
+                    'datacenter' => $datacenter,
+                    "plan" => $product->plan,
 
                 ];
                 if ($returnTotal) $total = $total + $price;
@@ -67,7 +68,7 @@ class CartHelper extends Controller
         return Cart::where('key', $cart)->update(["status" => 1]);
     }
 
-    static function AddItemToCart($item, $leasetime, $user, $amount, $dc)
+    static function AddItemToCart($item, $leasetime, $user, $amount, $dc, $plan)
     {
         $cart = self::getActiveCartOrCreateOne($user, true);
         $items = $cart->items;
@@ -80,7 +81,8 @@ class CartHelper extends Controller
                 'product_id' => $product->id,
                 'name' => $product->title,
                 'runtime' => $leasetime,
-                'datacenter' => $dc
+                'datacenter' => $dc,
+                "plan" => $plan
             ];
 
 

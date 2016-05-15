@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="3633b033-305b-4519-9152-6e2ac5e2d357" name="http://46.101.143.241/" url="http://lio-script.de/">
+        <fileTransfer host="46.101.143.241" port="21" password="df9adf98df9adf92df9bdf93df93df9ddffedfc3dfc7df91" username="timp@lio-script.de">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="21" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

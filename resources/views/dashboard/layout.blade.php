@@ -14,25 +14,35 @@
 
     <!-- Styles -->
     <link href='http://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700' rel='stylesheet' type='text/css'>
-    <link href="{{URL::to('assets/admin')}}/plugins/pace-master/themes/blue/pace-theme-flash.css" rel="stylesheet"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/uniform/css/uniform.default.min.css" rel="stylesheet"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/fontawesome/css/font-awesome.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/line-icons/simple-line-icons.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/waves/waves.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/switchery/switchery.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/3d-bold-navigation/css/style.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/slidepushmenus/css/component.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/weather-icons-master/css/weather-icons.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/metrojs/MetroJs.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/toastr/toastr.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/plugins/product-preview-slider/css/style.css" rel="stylesheet" type="text/css">
-    <link href="{{URL::to('assets/admin')}}/plugins/select2/css/select2.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/pace-master/themes/blue/pace-theme-flash.css"
+          rel="stylesheet"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/uniform/css/uniform.default.min.css" rel="stylesheet"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/fontawesome/css/font-awesome.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/line-icons/simple-line-icons.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/waves/waves.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/switchery/switchery.min.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/3d-bold-navigation/css/style.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/slidepushmenus/css/component.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/weather-icons-master/css/weather-icons.min.css"
+          rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/metrojs/MetroJs.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/toastr/toastr.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/plugins/product-preview-slider/css/style.css" rel="stylesheet"
+          type="text/css">
+    <link href="{{URL::to('public/assets/admin')}}/plugins/select2/css/select2.min.css" rel="stylesheet"
+          type="text/css"/>
     <!-- Theme Styles -->
-    <link href="{{URL::to('assets/admin')}}/css/modern.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/admin')}}/css/custom.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/css/modern.min.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/admin')}}/css/custom.css" rel="stylesheet" type="text/css"/>
 
-    <script src="{{URL::to('assets/admin')}}/plugins/3d-bold-navigation/js/modernizr.js"></script>
+    <script src="{{URL::to('public/assets/admin')}}/plugins/3d-bold-navigation/js/modernizr.js"></script>
 
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
@@ -208,42 +218,41 @@
 
 
 <!-- Javascripts -->
-<script src="{{URL::to('assets/admin')}}/plugins/jquery/jquery-2.1.4.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/jquery-ui/jquery-ui.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/pace-master/pace.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/jquery-blockui/jquery.blockui.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/bootstrap/js/bootstrap.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/switchery/switchery.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/uniform/jquery.uniform.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/classie/classie.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/waves/waves.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/3d-bold-navigation/js/main.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/waypoints/jquery.waypoints.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/jquery-counterup/jquery.counterup.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/toastr/toastr.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/flot/jquery.flot.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/flot/jquery.flot.time.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/flot/jquery.flot.symbol.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/flot/jquery.flot.resize.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/flot/jquery.flot.tooltip.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/curvedlines/curvedLines.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/metrojs/MetroJs.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/js/modern.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/js/pages/global.js"></script>
-<script src="{{URL::to('assets/admin')}}/js/pages/dashboard.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/gridgallery/js/imagesloaded.pkgd.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/gridgallery/js/masonry.pkgd.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/gridgallery/js/classie.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/gridgallery/js/cbpgridgallery.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/product-preview-slider/js/jquery.mobile.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/product-preview-slider/js/main.js"></script>
-<script src="{{URL::to('assets/admin')}}/js/modern.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/select2/js/select2.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/jquery-validation/jquery.validate.min.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
-<script src="{{URL::to('assets/admin')}}/js/pages/form-wizard.js"></script>
-<script src="{{URL::to('assets/admin')}}/plugins/twitter-bootstrap-wizard/jquery.bootstrap.wizard.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery/jquery-2.1.4.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery-ui/jquery-ui.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/pace-master/pace.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery-blockui/jquery.blockui.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/bootstrap/js/bootstrap.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/switchery/switchery.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/uniform/jquery.uniform.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/classie/classie.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/waves/waves.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/3d-bold-navigation/js/main.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/waypoints/jquery.waypoints.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery-counterup/jquery.counterup.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/toastr/toastr.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/flot/jquery.flot.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/flot/jquery.flot.time.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/flot/jquery.flot.symbol.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/flot/jquery.flot.resize.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/flot/jquery.flot.tooltip.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/curvedlines/curvedLines.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/metrojs/MetroJs.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/js/modern.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/js/pages/global.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/js/pages/dashboard.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/gridgallery/js/imagesloaded.pkgd.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/gridgallery/js/masonry.pkgd.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/gridgallery/js/classie.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/gridgallery/js/cbpgridgallery.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/product-preview-slider/js/jquery.mobile.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/product-preview-slider/js/main.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/select2/js/select2.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/jquery-validation/jquery.validate.min.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/js/pages/form-wizard.js"></script>
+<script src="{{URL::to('public/assets/admin')}}/plugins/twitter-bootstrap-wizard/jquery.bootstrap.wizard.min.js"></script>
 @if(!empty(session('success')))
 
     <script>

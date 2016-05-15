@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Helpers\CartHelper;
 use App\Http\Controllers\Helpers\InvoiceController;
+use App\Http\Controllers\Helpers\ServiceHelper;
 use Illuminate\Http\Request;
 
 use App\Http\Requests;
@@ -96,6 +97,7 @@ class CheckoutController extends Controller
 
         CartHelper::finishCart($data['cart']);
         InvoiceController::generateFirstInvoice(CartHelper::returnItems($data["cart"], true), Auth::user()->id, time() + 14 * 24 * 60 * 60, $contact, time());
+        ServiceHelper::bookCartAsServices($data['cart'], Auth::user()->id);
         Session::flash('success', true);
         Session::flash('heading', trans('invoice.new'));
         Session::flash('body', trans('invoice.please-pay'));

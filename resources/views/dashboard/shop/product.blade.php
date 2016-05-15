@@ -84,6 +84,7 @@
                             @endforeach
 
                         </select>
+                        <input type="hidden" value="{{$product->plan}}" name="plan">
                         <h4>@lang('shop.products.amount')</h4>
                         <input type="text" class="form-control" name="amount" value="1" required>
                         

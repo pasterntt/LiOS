@@ -55,7 +55,8 @@ class CartController extends Controller
             $input['month'],
             Auth::user()->id,
             $input['amount'],
-            $input['datacenter']
+            $input['datacenter'],
+            $input['plan']
         );
         return $this->success();
     }
