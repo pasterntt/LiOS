@@ -33,7 +33,7 @@
                                     {{$service->name}}
                                 </td>
                                 <td>
-                                    <span class="label label-{{\App\Http\Controllers\Helpers\StatusHelper::returnStatus($service->status)['class']}}">{{trans(\App\Http\Controllers\Helpers\StatusHelper::returnStatus($service->status)['human_string'])}}</span>
+                                    <span class="label label-{{\App\Http\Controllers\Helpers\StatusHelper::returnStatus($service->status)->class}}">{{trans(\App\Http\Controllers\Helpers\StatusHelper::returnStatus($service->status)->human_string)}}</span>
                                 </td>
                                 <td>
                                     <!-- Split button -->

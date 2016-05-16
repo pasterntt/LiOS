@@ -14,17 +14,23 @@
     <!-- Styles -->
     <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,600' rel='stylesheet' type='text/css'>
     <link href='http://fonts.googleapis.com/css?family=Raleway:500,400,300' rel='stylesheet' type='text/css'>
-    <link href="{{URL::to('assets/landing')}}/plugins/pace-master/themes/blue/pace-theme-flash.css" rel="stylesheet"/>
-    <link href="{{URL::to('assets/landing')}}/plugins/uniform/css/uniform.default.min.css" rel="stylesheet"/>
-    <link href="{{URL::to('assets/landing')}}/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/landing')}}/plugins/fontawesome/css/font-awesome.css" rel="stylesheet" type="text/css"/>
-    <link href="{{URL::to('assets/landing')}}/plugins/animate/animate.css" rel="stylesheet" type="text/css">
-    <link href="{{URL::to('assets/landing')}}/plugins/tabstylesinspiration/css/tabs.css" rel="stylesheet" type="text/css">
-    <link href="{{URL::to('assets/landing')}}/plugins/tabstylesinspiration/css/tabstyles.css" rel="stylesheet" type="text/css">
-    <link href="{{URL::to('assets/landing')}}/plugins/pricing-tables/css/style.css" rel="stylesheet" type="text/css">
-    <link href="{{URL::to('assets/landing')}}/css/landing.css" rel="stylesheet" type="text/css"/>
+    <link href="{{URL::to('public/assets/landing')}}/plugins/pace-master/themes/blue/pace-theme-flash.css"
+          rel="stylesheet"/>
+    <link href="{{URL::to('public/assets/landing')}}/plugins/uniform/css/uniform.default.min.css" rel="stylesheet"/>
+    <link href="{{URL::to('public/assets/landing')}}/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/landing')}}/plugins/fontawesome/css/font-awesome.css" rel="stylesheet"
+          type="text/css"/>
+    <link href="{{URL::to('public/assets/landing')}}/plugins/animate/animate.css" rel="stylesheet" type="text/css">
+    <link href="{{URL::to('public/assets/landing')}}/plugins/tabstylesinspiration/css/tabs.css" rel="stylesheet"
+          type="text/css">
+    <link href="{{URL::to('public/assets/landing')}}/plugins/tabstylesinspiration/css/tabstyles.css" rel="stylesheet"
+          type="text/css">
+    <link href="{{URL::to('public/assets/landing')}}/plugins/pricing-tables/css/style.css" rel="stylesheet"
+          type="text/css">
+    <link href="{{URL::to('public/assets/landing')}}/css/landing.css" rel="stylesheet" type="text/css"/>
 
-    <script src="{{URL::to('assets/landing')}}/plugins/pricing-tables/js/modernizr.js"></script>
+    <script src="{{URL::to('public/assets/landing')}}/plugins/pricing-tables/js/modernizr.js"></script>
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -405,16 +411,16 @@
 </footer>
 
 <!-- Javascripts -->
-<script src="{{URL::to('assets/landing')}}/plugins/jquery/jquery-2.1.4.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/jquery-ui/jquery-ui.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/pace-master/pace.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/bootstrap/js/bootstrap.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/uniform/jquery.uniform.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/wow/wow.min.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/tabstylesinspiration/js/cbpfwtabs.js"></script>
-<script src="{{URL::to('assets/landing')}}/plugins/pricing-tables/js/main.js"></script>
-<script src="{{URL::to('assets/landing')}}/js/landing.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/jquery/jquery-2.1.4.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/jquery-ui/jquery-ui.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/pace-master/pace.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/bootstrap/js/bootstrap.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/jquery-slimscroll/jquery.slimscroll.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/uniform/jquery.uniform.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/wow/wow.min.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/tabstylesinspiration/js/cbpfwtabs.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/plugins/pricing-tables/js/main.js"></script>
+<script src="{{URL::to('public/assets/landing')}}/js/landing.js"></script>
 
 </body>
 </html>

@@ -47,5 +47,7 @@ return [
         "total" => "Summe"
     ],
     "order" => "Bestellen",
-    "nothing_available" => "Momentan ist leider kein Angebot vorhanden. Versuchen Sie es bitte später erneut."
+    "nothing_available" => "Momentan ist leider kein Angebot vorhanden. Versuchen Sie es bitte später erneut.",
+    "submit" => "Kostenpflichtig bestellen",
+    
 ];

@@ -31,7 +31,7 @@ class ServiceHelper extends Controller
         $service = new Services();
 
         $service->owner = $owner;
-        $service->status = 0;
+        $service->status = 1;
         $service->name = $name;
         $service->plan = $plan;
         $service->datacenter = $dc;

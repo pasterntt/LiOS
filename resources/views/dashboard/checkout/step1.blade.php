@@ -128,7 +128,7 @@
                                                     <h1 class="no-m text-success">{{$total}}€</h1>
                                                     <br>
                                                     <input type="submit" class="btn btn-success btn-lg"
-                                                           value="@lang('forms.submit')">
+                                                           value="@lang('shop.submit')">
 
                                             </div>
                                         </div>
